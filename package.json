@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test:connection": "node scripts/test-connection.js",
     "test:schema": "node scripts/verify-schema.js",
-    "test:submission": "node scripts/test-submission.js"
+    "test:submission": "node scripts/test-submission.js",
+    "setup:collections": "node scripts/create-collections.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

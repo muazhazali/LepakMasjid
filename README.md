@@ -114,6 +114,7 @@ src/
 - `pnpm preview` - Preview production build
 - `pnpm lint` - Run ESLint
 - `pnpm test:connection` - Test connection to PocketBase
+- `pnpm setup:collections` - Create all required PocketBase collections
 - `pnpm test:schema` - Verify PocketBase collections match PRD schema
 - `pnpm test:submission` - Test submission workflow end-to-end
 
@@ -128,19 +129,27 @@ The application connects to a deployed PocketBase instance at `pb.muazhazali.me`
    npm run test:connection
    ```
 
-2. **Verify Schema**: Check that collections match the PRD schema
+2. **Create Collections**: Set up all required collections in PocketBase
+   ```powershell
+   npm run setup:collections
+   ```
+   This will prompt for your PocketBase admin credentials and create all collections automatically.
+
+3. **Verify Schema**: Check that collections match the PRD schema
    ```powershell
    npm run test:schema
    ```
 
-3. **Configure Google OAuth**: Follow the guide in `docs/GOOGLE_OAUTH_SETUP.md`
+4. **Configure Google OAuth**: Follow the guide in `docs/GOOGLE_OAUTH_SETUP.md`
 
-4. **Test Submission Workflow**: Test the end-to-end submission process
+5. **Test Submission Workflow**: Test the end-to-end submission process
    ```powershell
    npm run test:submission
    ```
 
-For detailed setup instructions, see [docs/POCKETBASE_SETUP.md](docs/POCKETBASE_SETUP.md).
+For detailed setup instructions, see:
+- [Connecting to Remote PocketBase](./docs/CONNECT_REMOTE_POCKETBASE.md) - How to connect your local app to a remote PocketBase instance
+- [PocketBase Setup Guide](./docs/POCKETBASE_SETUP.md) - Detailed PocketBase configuration
 
 ## Contributing
 

@@ -9,6 +9,7 @@ import PocketBase from 'pocketbase';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { config } from 'dotenv';
+import readline from 'readline';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -18,6 +19,48 @@ config({ path: join(__dirname, '../.env.local') });
 config({ path: join(__dirname, '../.env') });
 
 const POCKETBASE_URL = process.env.VITE_POCKETBASE_URL || 'https://pb.muazhazali.me';
+
+// Create readline interface for prompts
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
+function question(query) {
+  return new Promise(resolve => rl.question(query, resolve));
+}
+
+async function authenticate(pb) {
+  const adminEmail = process.env.POCKETBASE_ADMIN_EMAIL;
+  const adminPassword = process.env.POCKETBASE_ADMIN_PASSWORD;
+
+  if (adminEmail && adminPassword) {
+    console.log('🔐 Authenticating with environment variables...');
+    try {
+      await pb.collection('_superusers').authWithPassword(adminEmail, adminPassword);
+      console.log('   ✅ Authenticated successfully\n');
+      return true;
+    } catch (err) {
+      console.error('   ❌ Authentication failed:', err.message);
+      return false;
+    }
+  }
+
+  // Prompt for credentials
+  console.log('🔐 Please provide PocketBase admin credentials:');
+  const email = await question('   Email: ');
+  const password = await question('   Password: ');
+  console.log('');
+
+  try {
+    await pb.collection('_superusers').authWithPassword(email, password);
+    console.log('   ✅ Authenticated successfully\n');
+    return true;
+  } catch (err) {
+    console.error('   ❌ Authentication failed:', err.message);
+    return false;
+  }
+}
 
 // Expected schema based on PRD
 const EXPECTED_SCHEMA = {
@@ -136,9 +179,18 @@ function verifyCollection(collection, expectedFields) {
 
 async function verifySchema() {
   const pb = new PocketBase(POCKETBASE_URL);
+  pb.autoCancellation(false);
   
   console.log('🔍 Verifying PocketBase Schema...\n');
   console.log(`📍 URL: ${POCKETBASE_URL}\n`);
+  
+  // Authenticate
+  const authSuccess = await authenticate(pb);
+  if (!authSuccess) {
+    console.error('\n❌ Authentication failed. Cannot proceed.');
+    rl.close();
+    process.exit(1);
+  }
   
   try {
     // Get all collections
@@ -213,10 +265,12 @@ async function verifySchema() {
 
 verifySchema()
   .then(result => {
+    rl.close();
     process.exit(result.success ? 0 : 1);
   })
   .catch(err => {
     console.error('Unexpected error:', err);
+    rl.close();
     process.exit(1);
   });
 

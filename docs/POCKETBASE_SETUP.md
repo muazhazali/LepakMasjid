@@ -60,11 +60,36 @@ This script will:
 - ✅ Check field types match expected types
 - ✅ Report any missing or mismatched fields
 
-**If collections are missing or fields don't match**, you'll need to create/update them in the PocketBase Admin Panel.
+**If collections are missing or fields don't match**, you can create them automatically using the setup script.
 
 ## Step 3: Create Collections (if needed)
 
-If the schema verification shows missing collections, create them in PocketBase Admin Panel:
+### Option A: Automated Setup (Recommended)
+
+Create all collections programmatically using the setup script:
+
+```bash
+npm run setup:collections
+```
+
+This script will:
+- ✅ Prompt for your PocketBase admin credentials
+- ✅ Create all required collections automatically
+- ✅ Set up fields, indexes, and rules
+- ✅ Handle collection dependencies
+
+**Using Environment Variables (Optional):**
+
+You can set admin credentials in `.env.local` to avoid prompts:
+
+```env
+POCKETBASE_ADMIN_EMAIL=your-admin@email.com
+POCKETBASE_ADMIN_PASSWORD=your-admin-password
+```
+
+### Option B: Manual Setup
+
+If you prefer to create collections manually, use the PocketBase Admin Panel:
 
 ### Collection: `mosques`
 
@@ -249,14 +274,16 @@ Create initial amenities in the `amenities` collection:
 
 Once setup is complete:
 1. ✅ Test connection: `npm run test:connection`
-2. ✅ Verify schema: `npm run test:schema`
-3. ✅ Configure Google OAuth
-4. ✅ Test submission workflow: `npm run test:submission`
-5. ✅ Seed initial amenities data
-6. ✅ Start development: `npm run dev`
+2. ✅ Create collections: `npm run setup:collections` (if not done yet)
+3. ✅ Verify schema: `npm run test:schema`
+4. ✅ Configure Google OAuth
+5. ✅ Test submission workflow: `npm run test:submission`
+6. ✅ Seed initial amenities data
+7. ✅ Start development: `npm run dev`
 
 ## Additional Resources
 
+- [Connecting to Remote PocketBase](./CONNECT_REMOTE_POCKETBASE.md) - Detailed guide on connecting your local app to a remote PocketBase instance
 - [PocketBase Documentation](https://pocketbase.io/docs/)
 - [PocketBase Admin Panel](https://pb.muazhazali.me/_/)
 - [Google OAuth Setup Guide](./GOOGLE_OAUTH_SETUP.md)
