@@ -5,75 +5,88 @@ import type { Amenity, MosqueAmenity, Activity } from '@/types';
 export const mosquesApi = {
   // List mosques with filters
   async list(filters?: MosqueFilters): Promise<Mosque[]> {
-    const filterParts: string[] = ['status = "approved"'];
-    
-    if (filters) {
-      if (filters.state && filters.state !== 'all') {
-        filterParts.push(`state = "${filters.state}"`);
+    try {
+      const filterParts: string[] = ['status = "approved"'];
+      
+      if (filters) {
+        if (filters.state && filters.state !== 'all') {
+          filterParts.push(`state = "${filters.state}"`);
+        }
+        
+        if (filters.amenities && filters.amenities.length > 0) {
+          // This requires a join query - simplified for now
+          // In production, you'd need to query mosque_amenities and join
+        }
+        
+        if (filters.search) {
+          const searchLower = filters.search.toLowerCase();
+          filterParts.push(`(name ~ "${searchLower}" || address ~ "${searchLower}" || state ~ "${searchLower}")`);
+        }
       }
       
-      if (filters.amenities && filters.amenities.length > 0) {
-        // This requires a join query - simplified for now
-        // In production, you'd need to query mosque_amenities and join
-      }
+      const result = await pb.collection('mosques').getList(1, 50, {
+        filter: filterParts.join(' && '),
+        sort: filters?.sortBy ? this.getSortString(filters.sortBy) : '-created',
+      });
       
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        filterParts.push(`(name ~ "${searchLower}" || address ~ "${searchLower}" || state ~ "${searchLower}")`);
-      }
+      return result.items as unknown as Mosque[];
+    } catch (error: any) {
+      console.error('Error fetching mosques:', error);
+      throw new Error(error.message || 'Failed to fetch mosques. Please check your connection.');
     }
-    
-    const result = await pb.collection('mosques').getList(1, 50, {
-      filter: filterParts.join(' && '),
-      sort: filters?.sortBy ? this.getSortString(filters.sortBy) : '-created',
-    });
-    
-    return result.items as unknown as Mosque[];
   },
 
   // Get single mosque with details
   async get(id: string): Promise<MosqueWithDetails> {
-    const mosque = await pb.collection('mosques').getOne(id) as unknown as Mosque;
-    
-    // Fetch related amenities
-    const amenitiesResult = await pb.collection('mosque_amenities').getList(1, 100, {
-      filter: `mosque_id = "${id}"`,
-      expand: 'amenity_id',
-    });
-    
-    const amenities = amenitiesResult.items.map((item: any) => ({
-      ...(item.expand?.amenity_id || {}),
-      details: item.details || {},
-      verified: item.verified || false,
-    })) as (Amenity & { details: any; verified: boolean })[];
-    
-    // Fetch custom amenities (where amenity_id is null)
-    const customAmenities = amenitiesResult.items
-      .filter((item: any) => !item.amenity_id)
-      .map((item: any) => ({
-        id: item.id,
-        mosque_id: item.mosque_id,
-        amenity_id: null,
+    try {
+      const mosque = await pb.collection('mosques').getOne(id) as unknown as Mosque;
+      
+      // Fetch related amenities
+      const amenitiesResult = await pb.collection('mosque_amenities').getList(1, 100, {
+        filter: `mosque_id = "${id}"`,
+        expand: 'amenity_id',
+      });
+      
+      const amenities = amenitiesResult.items.map((item: any) => ({
+        ...(item.expand?.amenity_id || {}),
         details: item.details || {},
         verified: item.verified || false,
-        created: item.created,
-        updated: item.updated,
-      })) as MosqueAmenity[];
-    
-    // Fetch activities
-    const activitiesResult = await pb.collection('activities').getList(1, 100, {
-      filter: `mosque_id = "${id}" && status = "active"`,
-      sort: '-created',
-    });
-    
-    const activities = activitiesResult.items as unknown as Activity[];
-    
-    return {
-      ...mosque,
-      amenities,
-      customAmenities,
-      activities,
-    };
+      })) as (Amenity & { details: any; verified: boolean })[];
+      
+      // Fetch custom amenities (where amenity_id is null)
+      const customAmenities = amenitiesResult.items
+        .filter((item: any) => !item.amenity_id)
+        .map((item: any) => ({
+          id: item.id,
+          mosque_id: item.mosque_id,
+          amenity_id: null,
+          details: item.details || {},
+          verified: item.verified || false,
+          created: item.created,
+          updated: item.updated,
+        })) as MosqueAmenity[];
+      
+      // Fetch activities
+      const activitiesResult = await pb.collection('activities').getList(1, 100, {
+        filter: `mosque_id = "${id}" && status = "active"`,
+        sort: '-created',
+      });
+      
+      const activities = activitiesResult.items as unknown as Activity[];
+      
+      return {
+        ...mosque,
+        amenities,
+        customAmenities,
+        activities,
+      };
+    } catch (error: any) {
+      console.error('Error fetching mosque details:', error);
+      if (error.status === 404) {
+        throw new Error('Mosque not found');
+      }
+      throw new Error(error.message || 'Failed to fetch mosque details. Please check your connection.');
+    }
   },
 
   // Create mosque (for submissions)

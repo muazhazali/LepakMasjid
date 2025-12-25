@@ -8,17 +8,17 @@ This document summarizes what has been set up and what you need to do next.
 
 Three test scripts have been created to help you verify and test your PocketBase setup:
 
-- **`npm run test:connection`** - Tests basic connectivity to PocketBase
+- **`pnpm run test:connection`** - Tests basic connectivity to PocketBase
   - ✅ Health check
   - ✅ Authentication methods
   - ✅ API accessibility
 
-- **`npm run test:schema`** - Verifies collections match PRD schema
+- **`pnpm run test:schema`** - Verifies collections match PRD schema
   - ⚠️ Requires admin authentication (will prompt for credentials)
   - Checks all required collections exist
   - Verifies field types match expected schema
 
-- **`npm run test:submission`** - Tests end-to-end submission workflow
+- **`pnpm run test:submission`** - Tests end-to-end submission workflow
   - Interactive script that guides you through testing
   - Creates test submissions
   - Tests admin approval (optional)
@@ -71,7 +71,7 @@ You've already tested the connection and it works! Your PocketBase instance at `
 Run the schema verification script. **Note:** This requires admin credentials.
 
 ```powershell
-npm run test:schema
+pnpm run test:schema
 ```
 
 The script will prompt you for admin email and password to check collections.
@@ -104,7 +104,7 @@ Once you have:
 Run the submission test:
 
 ```powershell
-npm run test:submission
+pnpm run test:submission
 ```
 
 This will guide you through creating and testing a submission.
@@ -140,14 +140,14 @@ Create initial amenities in the `amenities` collection. Example:
 
 ### Connection Issues
 
-**If `npm run test:connection` fails:**
+**If `pnpm run test:connection` fails:**
 - Check PocketBase is running
 - Verify Cloudflare tunnel is active
 - Test URL in browser: `https://pb.muazhazali.me/api/health`
 
 ### Schema Issues
 
-**If `npm run test:schema` shows missing collections:**
+**If `pnpm run test:schema` shows missing collections:**
 - Create them in PocketBase Admin Panel
 - Reference `docs/POCKETBASE_SETUP.md` for field definitions
 - Use `scripts/create-schema.sql` as a reference
@@ -171,13 +171,13 @@ Create initial amenities in the `amenities` collection. Example:
 ## 🎯 Current Status
 
 ✅ **Connection**: Working  
-⏳ **Schema**: Needs verification (run `npm run test:schema`)  
+⏳ **Schema**: Needs verification (run `pnpm run test:schema`)  
 ⏳ **OAuth**: Not configured yet  
 ⏳ **Submissions**: Ready to test once schema is verified  
 
 ## Next Actions
 
-1. Run `npm run test:schema` to verify collections
+1. Run `pnpm run test:schema` to verify collections
 2. Create missing collections if needed
 3. Configure Google OAuth
 4. Test submission workflow

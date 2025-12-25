@@ -13,7 +13,7 @@ This guide will help you set up and verify your PocketBase instance at `pb.muazh
 First, verify that your application can connect to PocketBase:
 
 ```bash
-npm run test:connection
+pnpm run test:connection
 ```
 
 This script will:
@@ -51,7 +51,7 @@ This script will:
 Verify that your PocketBase collections match the PRD schema:
 
 ```bash
-npm run test:schema
+pnpm run test:schema
 ```
 
 This script will:
@@ -69,7 +69,7 @@ This script will:
 Create all collections programmatically using the setup script:
 
 ```bash
-npm run setup:collections
+pnpm run setup:collections
 ```
 
 This script will:
@@ -211,7 +211,7 @@ Follow the guide in [GOOGLE_OAUTH_SETUP.md](./GOOGLE_OAUTH_SETUP.md) to configur
 Test the end-to-end submission workflow:
 
 ```bash
-npm run test:submission
+pnpm run test:submission
 ```
 
 This interactive script will:
@@ -228,7 +228,7 @@ This interactive script will:
 Seed the database with sample mosque data using the seed script:
 
 ```bash
-npm run seed:data
+pnpm run seed:data
 ```
 
 This script will:
@@ -309,13 +309,13 @@ If you prefer to create amenities manually, here are example amenities:
 ## Next Steps
 
 Once setup is complete:
-1. ✅ Test connection: `npm run test:connection`
-2. ✅ Create collections: `npm run setup:collections` (if not done yet)
-3. ✅ Verify schema: `npm run test:schema`
+1. ✅ Test connection: `pnpm run test:connection`
+2. ✅ Create collections: `pnpm run setup:collections` (if not done yet)
+3. ✅ Verify schema: `pnpm run test:schema`
 4. ✅ Configure Google OAuth
-5. ✅ Test submission workflow: `npm run test:submission`
-6. ✅ Seed sample data: `npm run seed:data`
-7. ✅ Start development: `npm run dev`
+5. ✅ Test submission workflow: `pnpm run test:submission`
+6. ✅ Seed sample data: `pnpm run seed:data`
+7. ✅ Start development: `pnpm run dev`
 
 ## Additional Resources
 

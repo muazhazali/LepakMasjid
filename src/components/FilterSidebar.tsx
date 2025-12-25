@@ -44,7 +44,7 @@ const FilterSidebar = ({
   distance = 50,
   onDistanceChange,
 }: FilterSidebarProps) => {
-  const { data: amenities = [], isLoading: amenitiesLoading } = useAmenities();
+  const { data: amenities = [], isLoading: amenitiesLoading, error: amenitiesError } = useAmenities();
   const { t } = useTranslation();
   const { language } = useLanguageStore();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -74,7 +74,7 @@ const FilterSidebar = ({
     }
   };
 
-  const hasActiveFilters = selectedState !== '' || selectedAmenities.length > 0;
+  const hasActiveFilters = (selectedState && selectedState !== 'all') || selectedAmenities.length > 0;
 
   // Get icon component dynamically
   const getIcon = (iconName: string) => {
@@ -145,12 +145,12 @@ const FilterSidebar = ({
           {/* State filter */}
           <div className="space-y-3">
             <Label className="text-base font-semibold">{t('filter.state')}</Label>
-            <Select value={selectedState} onValueChange={onStateChange}>
+            <Select value={selectedState || 'all'} onValueChange={(value) => onStateChange(value === 'all' ? '' : value)}>
               <SelectTrigger className="w-full h-12">
                 <SelectValue placeholder="All states" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All states</SelectItem>
+                <SelectItem value="all">All states</SelectItem>
                 {MALAYSIAN_STATES.map((state) => (
                   <SelectItem key={state} value={state}>
                     {state}
@@ -182,6 +182,12 @@ const FilterSidebar = ({
             <Label className="text-base font-semibold">{t('filter.amenities')}</Label>
             {amenitiesLoading ? (
               <div className="text-sm text-muted-foreground">Loading amenities...</div>
+            ) : amenitiesError ? (
+              <div className="text-sm text-destructive p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                {amenitiesError instanceof Error ? amenitiesError.message : 'Failed to load amenities'}
+              </div>
+            ) : amenities.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No amenities available</div>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {amenities.map((amenity) => {

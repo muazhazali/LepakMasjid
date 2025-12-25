@@ -61,3 +61,21 @@ export const logout = (): void => {
   pb.authStore.clear();
 };
 
+// Helper to check PocketBase connection health
+export const checkConnection = async (): Promise<{ connected: boolean; error?: string }> => {
+  try {
+    await pb.health.check();
+    return { connected: true };
+  } catch (error: any) {
+    return { 
+      connected: false, 
+      error: error.message || 'Failed to connect to PocketBase' 
+    };
+  }
+};
+
+// Helper to get PocketBase URL (for debugging)
+export const getPocketBaseUrl = (): string => {
+  return POCKETBASE_URL;
+};
+

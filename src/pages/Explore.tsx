@@ -9,6 +9,7 @@ import MosqueCard from '@/components/MosqueCard';
 import { MapView } from '@/components/Map/MapView';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useMosques } from '@/hooks/use-mosques';
 import { useTranslation } from '@/hooks/use-translation';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,7 +34,7 @@ const Explore = () => {
     sortBy,
   }), [searchQuery, selectedState, selectedAmenities, sortBy]);
 
-  const { data: mosques = [], isLoading } = useMosques(filters);
+  const { data: mosques = [], isLoading, error } = useMosques(filters);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -145,18 +146,29 @@ const Explore = () => {
                   </div>
                 </div>
 
+                {/* Error state */}
+                {error && (
+                  <Alert variant="destructive" className="mb-6">
+                    <AlertDescription>
+                      {error instanceof Error ? error.message : 'Failed to load mosques. Please check your connection to PocketBase.'}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {/* Results count */}
-                <p className="text-sm text-muted-foreground mb-6">
-                  {t('explore.showing')} <span className="font-medium text-foreground">{mosques.length}</span> {t('explore.mosques')}
-                  {activeFilterCount > 0 && (
-                    <button 
-                      onClick={clearFilters}
-                      className="ml-2 text-primary hover:underline"
-                    >
-                      {t('explore.clear_filters')}
-                    </button>
-                  )}
-                </p>
+                {!error && (
+                  <p className="text-sm text-muted-foreground mb-6">
+                    {t('explore.showing')} <span className="font-medium text-foreground">{mosques.length}</span> {t('explore.mosques')}
+                    {activeFilterCount > 0 && (
+                      <button 
+                        onClick={clearFilters}
+                        className="ml-2 text-primary hover:underline"
+                      >
+                        {t('explore.clear_filters')}
+                      </button>
+                    )}
+                  </p>
+                )}
 
                 {/* Results */}
                 {isLoading ? (
@@ -164,6 +176,19 @@ const Explore = () => {
                     {[1, 2, 3, 4, 5, 6].map((i) => (
                       <Skeleton key={i} className="h-64 w-full" />
                     ))}
+                  </div>
+                ) : error ? (
+                  <div className="text-center py-16">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
+                      <MapIcon className="h-8 w-8 text-destructive" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Connection Error</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Unable to connect to the database. Please check your internet connection and try again.
+                    </p>
+                    <Button variant="outline" onClick={() => window.location.reload()}>
+                      Retry
+                    </Button>
                   </div>
                 ) : viewMode === 'map' ? (
                   <MapView mosques={mosques} className="h-[600px] w-full" />

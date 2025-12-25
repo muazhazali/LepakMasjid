@@ -5,9 +5,10 @@ import MosqueCard from '@/components/MosqueCard';
 import { useMosques } from '@/hooks/use-mosques';
 import { useTranslation } from '@/hooks/use-translation';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const FeaturedMosques = () => {
-  const { data: mosques, isLoading } = useMosques();
+  const { data: mosques, isLoading, error } = useMosques();
   const { t } = useTranslation();
   const featured = mosques?.slice(0, 3) || [];
 
@@ -32,12 +33,25 @@ const FeaturedMosques = () => {
           </Link>
         </div>
 
+        {/* Error state */}
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertDescription>
+              {error instanceof Error ? error.message : 'Failed to load mosques. Please check your connection.'}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Grid */}
         {isLoading ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
               <Skeleton key={i} className="h-64 w-full" />
             ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Unable to load mosques. Please try again later.</p>
           </div>
         ) : featured.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

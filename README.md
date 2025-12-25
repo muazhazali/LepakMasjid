@@ -127,30 +127,30 @@ The application connects to a deployed PocketBase instance at `pb.muazhazali.me`
 
 1. **Test Connection**: Verify you can connect to PocketBase
    ```powershell
-   npm run test:connection
+   pnpm run test:connection
    ```
 
 2. **Create Collections**: Set up all required collections in PocketBase
    ```powershell
-   npm run setup:collections
+   pnpm run setup:collections
    ```
    This will prompt for your PocketBase admin credentials and create all collections automatically.
 
 3. **Verify Schema**: Check that collections match the PRD schema
    ```powershell
-   npm run test:schema
+   pnpm run test:schema
    ```
 
 4. **Configure Google OAuth**: Follow the guide in `docs/GOOGLE_OAUTH_SETUP.md`
 
 5. **Test Submission Workflow**: Test the end-to-end submission process
    ```powershell
-   npm run test:submission
+   pnpm run test:submission
    ```
 
 6. **Seed Sample Data**: Populate the database with sample mosque data
    ```powershell
-   npm run seed:data
+   pnpm run seed:data
    ```
    This will create 10 sample mosques from different Malaysian states with amenities and descriptions.
 

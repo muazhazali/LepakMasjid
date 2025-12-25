@@ -55,7 +55,7 @@ The OAuth flow should work as follows:
 
 ## Step 4: Test the OAuth Flow
 
-1. Start your development server: `npm run dev`
+1. Start your development server: `pnpm run dev`
 2. Navigate to the login page
 3. Click "Sign in with Google"
 4. Complete the OAuth flow

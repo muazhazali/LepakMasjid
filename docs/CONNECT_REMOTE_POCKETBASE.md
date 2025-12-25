@@ -22,7 +22,7 @@ VITE_APP_URL=http://localhost:8080
 Test that your local app can connect to the remote PocketBase instance:
 
 ```powershell
-npm run test:connection
+pnpm run test:connection
 ```
 
 **Expected Output:**
@@ -52,7 +52,7 @@ npm run test:connection
 If your PocketBase instance doesn't have the required collections yet, create them programmatically:
 
 ```powershell
-npm run setup:collections
+pnpm run setup:collections
 ```
 
 This script will:
@@ -82,7 +82,7 @@ POCKETBASE_ADMIN_PASSWORD=your-admin-password
 After creating collections, verify they match the expected schema:
 
 ```powershell
-npm run test:schema
+pnpm run test:schema
 ```
 
 This will check:
@@ -182,11 +182,11 @@ All API requests are made directly from the browser to your remote PocketBase in
 
 ## Next Steps
 
-1. ✅ **Test Connection**: `npm run test:connection`
-2. ✅ **Create Collections**: `npm run setup:collections`
-3. ✅ **Verify Schema**: `npm run test:schema`
+1. ✅ **Test Connection**: `pnpm run test:connection`
+2. ✅ **Create Collections**: `pnpm run setup:collections`
+3. ✅ **Verify Schema**: `pnpm run test:schema`
 4. ✅ **Configure OAuth**: See [GOOGLE_OAUTH_SETUP.md](./GOOGLE_OAUTH_SETUP.md)
-5. ✅ **Start Development**: `npm run dev`
+5. ✅ **Start Development**: `pnpm run dev`
 
 ## Additional Resources
 

@@ -5,7 +5,7 @@ This guide will help you quickly test and verify your PocketBase setup.
 ## Step 1: Install Dependencies
 
 ```powershell
-npm install
+pnpm install
 ```
 
 ## Step 2: Create Environment File
@@ -22,7 +22,7 @@ VITE_APP_URL=http://localhost:5173
 Test that your app can connect to PocketBase:
 
 ```powershell
-npm run test:connection
+pnpm run test:connection
 ```
 
 **Expected Result:**
@@ -40,7 +40,7 @@ npm run test:connection
 Check that your PocketBase collections match the expected schema:
 
 ```powershell
-npm run test:schema
+pnpm run test:schema
 ```
 
 **Expected Result:**
@@ -66,7 +66,7 @@ If you want to enable Google sign-in:
 Test the end-to-end submission process:
 
 ```powershell
-npm run test:submission
+pnpm run test:submission
 ```
 
 This interactive script will:
@@ -84,7 +84,7 @@ This interactive script will:
 Once everything is set up:
 
 ```powershell
-npm run dev
+pnpm run dev
 ```
 
 The app will be available at `http://localhost:5173`
