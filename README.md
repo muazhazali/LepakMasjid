@@ -113,12 +113,34 @@ src/
 - `pnpm build` - Build for production
 - `pnpm preview` - Preview production build
 - `pnpm lint` - Run ESLint
+- `pnpm test:connection` - Test connection to PocketBase
+- `pnpm test:schema` - Verify PocketBase collections match PRD schema
+- `pnpm test:submission` - Test submission workflow end-to-end
 
-## PocketBase Connection
+## PocketBase Setup
 
-The application connects to a deployed PocketBase instance at `pb.muazhazali.me`. 
+The application connects to a deployed PocketBase instance at `pb.muazhazali.me`.
 
-**Note**: You need appropriate authentication credentials to access the PocketBase instance. Contact the project maintainer for access.
+### Quick Setup
+
+1. **Test Connection**: Verify you can connect to PocketBase
+   ```powershell
+   npm run test:connection
+   ```
+
+2. **Verify Schema**: Check that collections match the PRD schema
+   ```powershell
+   npm run test:schema
+   ```
+
+3. **Configure Google OAuth**: Follow the guide in `docs/GOOGLE_OAUTH_SETUP.md`
+
+4. **Test Submission Workflow**: Test the end-to-end submission process
+   ```powershell
+   npm run test:submission
+   ```
+
+For detailed setup instructions, see [docs/POCKETBASE_SETUP.md](docs/POCKETBASE_SETUP.md).
 
 ## Contributing
 
