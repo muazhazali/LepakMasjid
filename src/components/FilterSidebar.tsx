@@ -77,8 +77,36 @@ const FilterSidebar = ({
   const hasActiveFilters = (selectedState && selectedState !== 'all') || selectedAmenities.length > 0;
 
   // Get icon component dynamically
+  // Convert icon name to PascalCase and handle special cases
   const getIcon = (iconName: string) => {
-    const IconComponent = (LucideIcons as any)[iconName] || MapPin;
+    if (!iconName) return MapPin;
+    
+    // Normalize the icon name (lowercase, handle hyphens)
+    const normalized = iconName.toLowerCase().trim();
+    
+    // Map lowercase icon names from seed data to Lucide React icon names
+    const iconMap: Record<string, string> = {
+      'wifi': 'Wifi',
+      'laptop': 'Laptop',
+      'book': 'BookOpen',
+      'accessibility': 'Accessibility',
+      'car': 'Car',
+      'droplet': 'Droplet',
+      'users': 'Users',
+      'wind': 'Wind',
+      'utensils': 'UtensilsCrossed',
+      'graduation-cap': 'GraduationCap',
+      'graduationcap': 'GraduationCap',
+    };
+    
+    // Get the mapped icon name
+    const mappedName = iconMap[normalized];
+    
+    // Try to get the icon component
+    const IconComponent = mappedName 
+      ? ((LucideIcons as any)[mappedName] || MapPin)
+      : MapPin;
+    
     return IconComponent;
   };
 
