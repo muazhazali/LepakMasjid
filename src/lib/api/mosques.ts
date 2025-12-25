@@ -6,7 +6,11 @@ export const mosquesApi = {
   // List mosques with filters
   async list(filters?: MosqueFilters): Promise<Mosque[]> {
     try {
-      const filterParts: string[] = ['status = "approved"'];
+      // Build filter parts
+      const filterParts: string[] = [];
+      
+      // Try to filter by approved status
+      filterParts.push('status = "approved"');
       
       if (filters) {
         if (filters.state && filters.state !== 'all') {
@@ -18,21 +22,118 @@ export const mosquesApi = {
           // In production, you'd need to query mosque_amenities and join
         }
         
-        if (filters.search) {
-          const searchLower = filters.search.toLowerCase();
-          filterParts.push(`(name ~ "${searchLower}" || address ~ "${searchLower}" || state ~ "${searchLower}")`);
+        if (filters.search && filters.search.trim()) {
+          const searchLower = filters.search.toLowerCase().trim();
+          // Escape quotes in search term to prevent filter syntax errors
+          const escapedSearch = searchLower.replace(/"/g, '\\"');
+          filterParts.push(`(name ~ "${escapedSearch}" || address ~ "${escapedSearch}" || state ~ "${escapedSearch}")`);
         }
       }
       
-      const result = await pb.collection('mosques').getList(1, 50, {
-        filter: filterParts.join(' && '),
-        sort: filters?.sortBy ? this.getSortString(filters.sortBy) : '-created',
-      });
+      const filterString = filterParts.join(' && ');
+      const sortString = filters?.sortBy ? this.getSortString(filters.sortBy) : '-created';
       
-      return result.items as unknown as Mosque[];
+      // Try query with status filter
+      try {
+        const result = await pb.collection('mosques').getList(1, 50, {
+          filter: filterString,
+          sort: sortString,
+        });
+        return result.items as unknown as Mosque[];
+      } catch (statusError: any) {
+        // If status filter fails with 400, try without it
+        if (statusError.status === 400) {
+          console.warn('⚠️ Query with status filter failed, trying without status filter');
+          
+          // Build filter without status
+          const filterPartsNoStatus: string[] = [];
+          
+          if (filters) {
+            if (filters.state && filters.state !== 'all') {
+              filterPartsNoStatus.push(`state = "${filters.state}"`);
+            }
+            
+            if (filters.search && filters.search.trim()) {
+              const searchLower = filters.search.toLowerCase().trim();
+              const escapedSearch = searchLower.replace(/"/g, '\\"');
+              filterPartsNoStatus.push(`(name ~ "${escapedSearch}" || address ~ "${escapedSearch}" || state ~ "${escapedSearch}")`);
+            }
+          }
+          
+          const filterStringNoStatus = filterPartsNoStatus.length > 0 ? filterPartsNoStatus.join(' && ') : undefined;
+          
+          try {
+            const result = await pb.collection('mosques').getList(1, 50, {
+              ...(filterStringNoStatus && { filter: filterStringNoStatus }),
+              sort: sortString,
+            });
+            
+            // Filter client-side by status if available
+            const items = result.items as unknown as Mosque[];
+            return items.filter((mosque: any) => !mosque.status || mosque.status === 'approved');
+          } catch (noStatusError: any) {
+            // If even the query without status fails, try the most basic query
+            console.warn('⚠️ Query without status filter also failed, trying basic query');
+            
+            try {
+              const result = await pb.collection('mosques').getList(1, 50);
+              const items = result.items as unknown as Mosque[];
+              // Filter client-side by status and other filters if available
+              let filtered = items.filter((mosque: any) => !mosque.status || mosque.status === 'approved');
+              
+              if (filters) {
+                if (filters.state && filters.state !== 'all') {
+                  filtered = filtered.filter((m: any) => m.state === filters.state);
+                }
+                if (filters.search && filters.search.trim()) {
+                  const searchLower = filters.search.toLowerCase().trim();
+                  filtered = filtered.filter((m: any) => 
+                    m.name?.toLowerCase().includes(searchLower) ||
+                    m.address?.toLowerCase().includes(searchLower) ||
+                    m.state?.toLowerCase().includes(searchLower)
+                  );
+                }
+              }
+              
+              return filtered;
+            } catch (basicError: any) {
+              // Log the actual error from PocketBase
+              console.error('❌ All query attempts failed');
+              console.error('Basic query error:', {
+                status: basicError.status,
+                message: basicError.message,
+                data: basicError.data,
+                url: basicError.url,
+              });
+              
+              throw new Error(
+                basicError.data?.message || 
+                basicError.message || 
+                'Failed to fetch mosques. The collection may not exist or may not be accessible.'
+              );
+            }
+          }
+        } else {
+          // Re-throw if it's not a 400 error
+          throw statusError;
+        }
+      }
     } catch (error: any) {
       console.error('Error fetching mosques:', error);
-      throw new Error(error.message || 'Failed to fetch mosques. Please check your connection.');
+      
+      // Log detailed error information
+      if (error.data) {
+        console.error('Error data:', JSON.stringify(error.data, null, 2));
+      }
+      if (error.response) {
+        console.error('Error response:', error.response);
+      }
+      
+      throw new Error(
+        error.data?.message || 
+        error.message || 
+        'Failed to fetch mosques. Please check your connection and verify the collection exists.'
+      );
     }
   },
 
