@@ -1,12 +1,13 @@
-import { pb } from './pocketbase';
+import { getPocketBaseUrl } from './pocketbase';
 import type { RecordModel } from 'pocketbase';
 
 /**
  * Get the full URL for an image stored in PocketBase
  * 
- * @param record - The PocketBase record containing the image
+ * @param record - The PocketBase record containing the image (must have id property)
  * @param filename - The filename of the image (from the record's file field)
  * @param thumb - Optional thumbnail size (e.g., '100x250', '300x300')
+ * @param collectionName - Optional collection name (defaults to 'mosques' if not found in record)
  * @returns The full URL to access the image
  * 
  * @example
@@ -14,9 +15,10 @@ import type { RecordModel } from 'pocketbase';
  * const imageUrl = getImageUrl(mosque, mosque.image, '300x300');
  */
 export function getImageUrl(
-  record: RecordModel,
+  record: RecordModel | { id: string; collectionId?: string; collectionName?: string; [key: string]: any },
   filename: string | string[] | File | null | undefined,
-  thumb?: string
+  thumb?: string,
+  collectionName?: string
 ): string | null {
   if (!filename) {
     return null;
@@ -34,9 +36,27 @@ export function getImageUrl(
     return null;
   }
 
-  // Generate the URL with optional thumbnail
-  const options = thumb ? { thumb } : {};
-  return pb.files.getURL(record, imageFilename, options);
+  if (!record || !record.id) {
+    return null;
+  }
+
+  // Construct the URL manually: {baseUrl}/api/files/{collectionId}/{recordId}/{filename}
+  const baseUrl = getPocketBaseUrl();
+  // Try to get collection name from record, parameter, or default to 'mosques'
+  const collectionId = collectionName || 
+    (record as any).collectionId || 
+    (record as any).collectionName || 
+    'mosques';
+  const recordId = record.id;
+  
+  let url = `${baseUrl}/api/files/${collectionId}/${recordId}/${imageFilename}`;
+  
+  // Add thumbnail parameter if specified
+  if (thumb) {
+    url += `?thumb=${thumb}`;
+  }
+  
+  return url;
 }
 
 /**
@@ -64,7 +84,22 @@ export function getImageUrls(
   
   return files
     .filter((f): f is string => typeof f === 'string' && f.length > 0)
-    .map(filename => pb.files.getURL(record, filename, thumb ? { thumb } : {}));
+    .map(filename => {
+      if (!record || !record.id) {
+        return '';
+      }
+      const baseUrl = getPocketBaseUrl();
+      const collectionId = (record as any).collectionId || 
+        (record as any).collectionName || 
+        'mosques';
+      const recordId = record.id;
+      let url = `${baseUrl}/api/files/${collectionId}/${recordId}/${filename}`;
+      if (thumb) {
+        url += `?thumb=${thumb}`;
+      }
+      return url;
+    })
+    .filter(url => url.length > 0);
 }
 
 /**

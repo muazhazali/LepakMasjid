@@ -13,6 +13,7 @@ import { useTranslation } from '@/hooks/use-translation';
 import { useLanguageStore } from '@/stores/language';
 import { SkipLink } from '@/components/SkipLink';
 import { format } from 'date-fns';
+import { getImageUrl } from '@/lib/pocketbase-images';
 
 const MosqueDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -56,6 +57,9 @@ const MosqueDetail = () => {
   const displayDescription = language === 'bm' && mosque.description_bm 
     ? mosque.description_bm 
     : mosque.description;
+  
+  // Get image URL for the mosque
+  const imageUrl = getImageUrl(mosque as any, mosque.image);
 
   return (
     <>
@@ -79,6 +83,18 @@ const MosqueDetail = () => {
               <ArrowLeft className="mr-2 h-4 w-4" />
               {t('common.back')}
             </Button>
+
+            {/* Image */}
+            {imageUrl && (
+              <div className="mb-8">
+                <img 
+                  src={imageUrl} 
+                  alt={displayName}
+                  className="w-full h-[400px] object-cover rounded-lg"
+                  loading="eager"
+                />
+              </div>
+            )}
 
             {/* Header */}
             <div className="mb-8">

@@ -4,6 +4,7 @@ import type { Mosque } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { useLanguageStore } from '@/stores/language';
 import * as LucideIcons from 'lucide-react';
+import { getImageUrl } from '@/lib/pocketbase-images';
 
 interface MosqueCardProps {
   mosque: Mosque;
@@ -17,6 +18,9 @@ const MosqueCard = ({ mosque, onClick }: MosqueCardProps) => {
   const displayDescription = language === 'bm' && mosque.description_bm 
     ? mosque.description_bm 
     : mosque.description;
+  
+  // Get image URL for the mosque
+  const imageUrl = getImageUrl(mosque as any, mosque.image, '400x300');
 
   // Get icon component dynamically
   // Convert icon name to PascalCase and handle special cases
@@ -78,13 +82,22 @@ const MosqueCard = ({ mosque, onClick }: MosqueCardProps) => {
         tabIndex={0}
         aria-label={`View details for ${displayName}`}
       >
-        {/* Image placeholder with gradient */}
-        <div className="relative h-40 rounded-lg overflow-hidden mb-4 bg-gradient-to-br from-primary/20 to-primary/5">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <MapPin className="h-8 w-8 text-primary" />
+        {/* Image */}
+        <div className="relative h-40 rounded-lg overflow-hidden mb-4">
+          {imageUrl ? (
+            <img 
+              src={imageUrl} 
+              alt={displayName}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <MapPin className="h-8 w-8 text-primary" />
+              </div>
             </div>
-          </div>
+          )}
           {/* State badge */}
           <Badge 
             variant="secondary" 
