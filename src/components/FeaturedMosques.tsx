@@ -2,10 +2,14 @@ import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import MosqueCard from '@/components/MosqueCard';
-import { MOCK_MOSQUES } from '@/data/mosques';
+import { useMosques } from '@/hooks/use-mosques';
+import { useTranslation } from '@/hooks/use-translation';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const FeaturedMosques = () => {
-  const featured = MOCK_MOSQUES.slice(0, 3);
+  const { data: mosques, isLoading } = useMosques();
+  const { t } = useTranslation();
+  const featured = mosques?.slice(0, 3) || [];
 
   return (
     <section className="py-16 lg:py-24">
@@ -29,17 +33,29 @@ const FeaturedMosques = () => {
         </div>
 
         {/* Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featured.map((mosque, index) => (
-            <div
-              key={mosque.id}
-              className="animate-fade-up"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <MosqueCard mosque={mosque} />
-            </div>
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-64 w-full" />
+            ))}
+          </div>
+        ) : featured.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {featured.map((mosque, index) => (
+              <div
+                key={mosque.id}
+                className="animate-fade-up"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <MosqueCard mosque={mosque} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No mosques available yet.</p>
+          </div>
+        )}
       </div>
     </section>
   );

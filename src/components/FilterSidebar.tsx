@@ -1,8 +1,10 @@
-import { X, Wifi, Laptop, BookOpen, Accessibility, Car, Droplets, Users, Wind, Coffee, GraduationCap } from 'lucide-react';
-import { AMENITIES, STATES } from '@/data/mosques';
+import { useState, useEffect } from 'react';
+import { X, MapPin } from 'lucide-react';
+import { MALAYSIAN_STATES } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,
@@ -10,6 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useAmenities } from '@/hooks/use-amenities';
+import { useTranslation } from '@/hooks/use-translation';
+import { useLanguageStore } from '@/stores/language';
+import * as LucideIcons from 'lucide-react';
 
 interface FilterSidebarProps {
   selectedState: string;
@@ -19,20 +25,11 @@ interface FilterSidebarProps {
   onClear: () => void;
   isOpen: boolean;
   onClose: () => void;
+  sortBy?: 'nearest' | 'most_amenities' | 'alphabetical';
+  onSortChange?: (sort: 'nearest' | 'most_amenities' | 'alphabetical') => void;
+  distance?: number;
+  onDistanceChange?: (distance: number) => void;
 }
-
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  Wifi,
-  Laptop,
-  BookOpen,
-  Accessibility,
-  Car,
-  Droplets,
-  Users,
-  Wind,
-  Coffee,
-  GraduationCap,
-};
 
 const FilterSidebar = ({
   selectedState,
@@ -42,16 +39,48 @@ const FilterSidebar = ({
   onClear,
   isOpen,
   onClose,
+  sortBy = 'alphabetical',
+  onSortChange,
+  distance = 50,
+  onDistanceChange,
 }: FilterSidebarProps) => {
-  const handleAmenityToggle = (key: string) => {
-    if (selectedAmenities.includes(key)) {
-      onAmenitiesChange(selectedAmenities.filter((a) => a !== key));
+  const { data: amenities = [], isLoading: amenitiesLoading } = useAmenities();
+  const { t } = useTranslation();
+  const { language } = useLanguageStore();
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    // Try to get user location for distance filter
+    if (navigator.geolocation && onDistanceChange) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        () => {
+          // User denied or error
+        }
+      );
+    }
+  }, [onDistanceChange]);
+
+  const handleAmenityToggle = (amenityId: string) => {
+    if (selectedAmenities.includes(amenityId)) {
+      onAmenitiesChange(selectedAmenities.filter((a) => a !== amenityId));
     } else {
-      onAmenitiesChange([...selectedAmenities, key]);
+      onAmenitiesChange([...selectedAmenities, amenityId]);
     }
   };
 
   const hasActiveFilters = selectedState !== '' || selectedAmenities.length > 0;
+
+  // Get icon component dynamically
+  const getIcon = (iconName: string) => {
+    const IconComponent = (LucideIcons as any)[iconName] || MapPin;
+    return IconComponent;
+  };
 
   return (
     <>
@@ -76,8 +105,8 @@ const FilterSidebar = ({
         <div className="p-6 lg:p-0 space-y-6">
           {/* Mobile header */}
           <div className="flex items-center justify-between lg:hidden">
-            <h2 className="font-display text-xl font-bold">Filters</h2>
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <h2 className="font-display text-xl font-bold">{t('common.filter')}</h2>
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('common.close')}>
               <X className="h-5 w-5" />
             </Button>
           </div>
@@ -86,24 +115,43 @@ const FilterSidebar = ({
           {hasActiveFilters && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
-                {selectedAmenities.length + (selectedState ? 1 : 0)} active filters
+                {selectedAmenities.length + (selectedState ? 1 : 0)} {t('common.filter')}
               </span>
               <Button variant="ghost" size="sm" onClick={onClear} className="text-destructive">
-                Clear all
+                {t('common.clear')}
               </Button>
+            </div>
+          )}
+
+          {/* Sort by */}
+          {onSortChange && (
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">{t('filter.sort_by')}</Label>
+              <Select value={sortBy} onValueChange={onSortChange}>
+                <SelectTrigger className="w-full h-12">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="alphabetical">{t('filter.sort.alphabetical')}</SelectItem>
+                  <SelectItem value="most_amenities">{t('filter.sort.most_amenities')}</SelectItem>
+                  {userLocation && (
+                    <SelectItem value="nearest">{t('filter.sort.nearest')}</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
           {/* State filter */}
           <div className="space-y-3">
-            <Label className="text-base font-semibold">State</Label>
+            <Label className="text-base font-semibold">{t('filter.state')}</Label>
             <Select value={selectedState} onValueChange={onStateChange}>
               <SelectTrigger className="w-full h-12">
                 <SelectValue placeholder="All states" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All states</SelectItem>
-                {STATES.map((state) => (
+                <SelectItem value="">All states</SelectItem>
+                {MALAYSIAN_STATES.map((state) => (
                   <SelectItem key={state} value={state}>
                     {state}
                   </SelectItem>
@@ -112,45 +160,65 @@ const FilterSidebar = ({
             </Select>
           </div>
 
+          {/* Distance filter */}
+          {onDistanceChange && userLocation && (
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">
+                {t('filter.distance')} ({distance} km)
+              </Label>
+              <Slider
+                value={[distance]}
+                onValueChange={([value]) => onDistanceChange(value)}
+                min={1}
+                max={100}
+                step={1}
+                className="w-full"
+              />
+            </div>
+          )}
+
           {/* Amenities filter */}
           <div className="space-y-3">
-            <Label className="text-base font-semibold">Facilities</Label>
-            <div className="space-y-2">
-              {AMENITIES.map((amenity) => {
-                const IconComponent = iconMap[amenity.icon];
-                const isChecked = selectedAmenities.includes(amenity.key);
-                
-                return (
-                  <label
-                    key={amenity.id}
-                    className={`
-                      flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors
-                      ${isChecked ? 'bg-primary/10 border border-primary/30' : 'hover:bg-secondary border border-transparent'}
-                    `}
-                  >
-                    <Checkbox
-                      checked={isChecked}
-                      onCheckedChange={() => handleAmenityToggle(amenity.key)}
-                      className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                    />
-                    <div className="flex items-center gap-2 flex-1">
-                      {IconComponent && (
+            <Label className="text-base font-semibold">{t('filter.amenities')}</Label>
+            {amenitiesLoading ? (
+              <div className="text-sm text-muted-foreground">Loading amenities...</div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {amenities.map((amenity) => {
+                  const IconComponent = getIcon(amenity.icon);
+                  const isChecked = selectedAmenities.includes(amenity.id);
+                  const label = language === 'bm' ? amenity.label_bm : amenity.label_en;
+                  
+                  return (
+                    <label
+                      key={amenity.id}
+                      className={`
+                        flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors
+                        ${isChecked ? 'bg-primary/10 border border-primary/30' : 'hover:bg-secondary border border-transparent'}
+                      `}
+                    >
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => handleAmenityToggle(amenity.id)}
+                        className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                      />
+                      <div className="flex items-center gap-2 flex-1">
                         <IconComponent className={`h-4 w-4 ${isChecked ? 'text-primary' : 'text-muted-foreground'}`} />
-                      )}
-                      <span className={`text-sm font-medium ${isChecked ? 'text-foreground' : 'text-muted-foreground'}`}>
-                        {amenity.label_en}
-                      </span>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
+                        <span className={`text-sm font-medium ${isChecked ? 'text-foreground' : 'text-muted-foreground'}`}>
+                          {label}
+                        </span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Apply button (mobile) */}
           <div className="lg:hidden pt-4">
             <Button className="w-full" onClick={onClose}>
-              Apply Filters
+              {t('common.apply')}
             </Button>
           </div>
         </div>

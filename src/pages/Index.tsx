@@ -1,40 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import HeroSection from '@/components/HeroSection';
 import StatsSection from '@/components/StatsSection';
 import FeaturedMosques from '@/components/FeaturedMosques';
 import CTASection from '@/components/CTASection';
 import Footer from '@/components/Footer';
+import { SkipLink } from '@/components/SkipLink';
 
 const Index = () => {
-  const [isDark, setIsDark] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    // Check for system preference
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const stored = localStorage.getItem('theme');
-    const shouldBeDark = stored === 'dark' || (!stored && prefersDark);
-    setIsDark(shouldBeDark);
-    document.documentElement.classList.toggle('dark', shouldBeDark);
-  }, []);
-
-  const toggleTheme = () => {
-    const newValue = !isDark;
-    setIsDark(newValue);
-    localStorage.setItem('theme', newValue ? 'dark' : 'light');
-    document.documentElement.classList.toggle('dark', newValue);
-  };
+  const navigate = useNavigate();
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
-      window.location.href = `/explore?q=${encodeURIComponent(searchQuery)}`;
+      navigate(`/explore?q=${encodeURIComponent(searchQuery)}`);
+    } else {
+      navigate('/explore');
     }
   };
 
   return (
     <>
+      <SkipLink />
       <Helmet>
         <title>lepakmasjid - Find Mosques with Facilities You Need</title>
         <meta 
@@ -46,9 +35,9 @@ const Index = () => {
       </Helmet>
 
       <div className="min-h-screen flex flex-col">
-        <Header isDark={isDark} onToggleTheme={toggleTheme} />
+        <Header />
         
-        <main className="flex-1">
+        <main id="main-content" className="flex-1">
           <HeroSection 
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}

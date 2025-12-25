@@ -1,95 +1,72 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useSearchParams } from 'react-router-dom';
-import { Filter, Grid, List, MapIcon } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Filter, Grid, List, MapIcon, Map as MapIcon2 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import FilterSidebar from '@/components/FilterSidebar';
 import MosqueCard from '@/components/MosqueCard';
+import { MapView } from '@/components/Map/MapView';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MOCK_MOSQUES, Mosque } from '@/data/mosques';
+import { useMosques } from '@/hooks/use-mosques';
+import { useTranslation } from '@/hooks/use-translation';
+import { Skeleton } from '@/components/ui/skeleton';
+import { SkipLink } from '@/components/SkipLink';
+import type { MosqueFilters } from '@/types';
 
 const Explore = () => {
   const [searchParams] = useSearchParams();
-  const [isDark, setIsDark] = useState(false);
+  const navigate = useNavigate();
+  const { t } = useTranslation();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  const [selectedState, setSelectedState] = useState('');
+  const [selectedState, setSelectedState] = useState(searchParams.get('state') || '');
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>('grid');
+  const [sortBy, setSortBy] = useState<'nearest' | 'most_amenities' | 'alphabetical'>('alphabetical');
 
-  useEffect(() => {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const stored = localStorage.getItem('theme');
-    const shouldBeDark = stored === 'dark' || (!stored && prefersDark);
-    setIsDark(shouldBeDark);
-    document.documentElement.classList.toggle('dark', shouldBeDark);
-  }, []);
+  const filters: MosqueFilters = useMemo(() => ({
+    state: selectedState || undefined,
+    amenities: selectedAmenities.length > 0 ? selectedAmenities : undefined,
+    search: searchQuery || undefined,
+    sortBy,
+  }), [searchQuery, selectedState, selectedAmenities, sortBy]);
 
-  const toggleTheme = () => {
-    const newValue = !isDark;
-    setIsDark(newValue);
-    localStorage.setItem('theme', newValue ? 'dark' : 'light');
-    document.documentElement.classList.toggle('dark', newValue);
-  };
-
-  const filteredMosques = useMemo(() => {
-    return MOCK_MOSQUES.filter((mosque) => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesName = mosque.name.toLowerCase().includes(query);
-        const matchesAddress = mosque.address.toLowerCase().includes(query);
-        const matchesState = mosque.state.toLowerCase().includes(query);
-        if (!matchesName && !matchesAddress && !matchesState) return false;
-      }
-
-      // State filter
-      if (selectedState && selectedState !== 'all' && mosque.state !== selectedState) {
-        return false;
-      }
-
-      // Amenities filter
-      if (selectedAmenities.length > 0) {
-        const hasAllAmenities = selectedAmenities.every((a) => mosque.amenities.includes(a));
-        if (!hasAllAmenities) return false;
-      }
-
-      return true;
-    });
-  }, [searchQuery, selectedState, selectedAmenities]);
+  const { data: mosques = [], isLoading } = useMosques(filters);
 
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedState('');
     setSelectedAmenities([]);
+    navigate('/explore', { replace: true });
   };
 
-  const activeFilterCount = (selectedState ? 1 : 0) + selectedAmenities.length;
+  const activeFilterCount = (selectedState ? 1 : 0) + selectedAmenities.length + (searchQuery ? 1 : 0);
 
   return (
     <>
+      <SkipLink />
       <Helmet>
-        <title>Explore Mosques - lepakmasjid</title>
+        <title>{t('explore.title')} - lepakmasjid</title>
         <meta 
           name="description" 
-          content="Browse and search mosques in Malaysia. Filter by state, facilities like WiFi, working space, and accessibility features." 
+          content={t('explore.subtitle')}
         />
       </Helmet>
 
       <div className="min-h-screen flex flex-col bg-background">
-        <Header isDark={isDark} onToggleTheme={toggleTheme} />
+        <Header />
 
-        <main className="flex-1">
+        <main id="main-content" className="flex-1">
           {/* Page header */}
           <div className="bg-secondary/30 border-b border-border">
             <div className="container-main py-8">
               <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-2">
-                Explore Mosques
+                {t('explore.title')}
               </h1>
               <p className="text-muted-foreground text-lg">
-                Find mosques with the facilities you need
+                {t('explore.subtitle')}
               </p>
             </div>
           </div>
@@ -105,6 +82,8 @@ const Explore = () => {
                 onClear={clearFilters}
                 isOpen={isFilterOpen}
                 onClose={() => setIsFilterOpen(false)}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
               />
 
               {/* Main content */}
@@ -114,7 +93,7 @@ const Explore = () => {
                   <div className="flex-1">
                     <Input
                       type="search"
-                      placeholder="Search mosques..."
+                      placeholder={t('explore.search_placeholder')}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="h-12"
@@ -127,7 +106,7 @@ const Explore = () => {
                       onClick={() => setIsFilterOpen(true)}
                     >
                       <Filter className="h-4 w-4 mr-2" />
-                      Filters
+                      {t('common.filter')}
                       {activeFilterCount > 0 && (
                         <span className="ml-2 px-2 py-0.5 rounded-full bg-primary text-primary-foreground text-xs">
                           {activeFilterCount}
@@ -140,6 +119,7 @@ const Explore = () => {
                         size="icon"
                         onClick={() => setViewMode('grid')}
                         className="rounded-none"
+                        aria-label="Grid view"
                       >
                         <Grid className="h-4 w-4" />
                       </Button>
@@ -148,8 +128,18 @@ const Explore = () => {
                         size="icon"
                         onClick={() => setViewMode('list')}
                         className="rounded-none"
+                        aria-label="List view"
                       >
                         <List className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant={viewMode === 'map' ? 'secondary' : 'ghost'}
+                        size="icon"
+                        onClick={() => setViewMode('map')}
+                        className="rounded-none"
+                        aria-label="Map view"
+                      >
+                        <MapIcon2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -157,21 +147,29 @@ const Explore = () => {
 
                 {/* Results count */}
                 <p className="text-sm text-muted-foreground mb-6">
-                  Showing <span className="font-medium text-foreground">{filteredMosques.length}</span> mosques
-                  {(searchQuery || selectedState || selectedAmenities.length > 0) && (
+                  {t('explore.showing')} <span className="font-medium text-foreground">{mosques.length}</span> {t('explore.mosques')}
+                  {activeFilterCount > 0 && (
                     <button 
                       onClick={clearFilters}
                       className="ml-2 text-primary hover:underline"
                     >
-                      Clear filters
+                      {t('explore.clear_filters')}
                     </button>
                   )}
                 </p>
 
-                {/* Results grid */}
-                {filteredMosques.length > 0 ? (
+                {/* Results */}
+                {isLoading ? (
                   <div className={`grid gap-6 ${viewMode === 'grid' ? 'md:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
-                    {filteredMosques.map((mosque, index) => (
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                      <Skeleton key={i} className="h-64 w-full" />
+                    ))}
+                  </div>
+                ) : viewMode === 'map' ? (
+                  <MapView mosques={mosques} className="h-[600px] w-full" />
+                ) : mosques.length > 0 ? (
+                  <div className={`grid gap-6 ${viewMode === 'grid' ? 'md:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
+                    {mosques.map((mosque, index) => (
                       <div
                         key={mosque.id}
                         className="animate-fade-up"
@@ -186,12 +184,12 @@ const Explore = () => {
                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-secondary flex items-center justify-center">
                       <MapIcon className="h-8 w-8 text-muted-foreground" />
                     </div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">No mosques found</h3>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">{t('explore.no_results')}</h3>
                     <p className="text-muted-foreground mb-4">
                       Try adjusting your search or filter criteria
                     </p>
                     <Button variant="outline" onClick={clearFilters}>
-                      Clear all filters
+                      {t('explore.clear_filters')}
                     </Button>
                   </div>
                 )}

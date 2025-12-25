@@ -2,31 +2,61 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
+import { usePocketBase } from "@/hooks/use-pocketbase";
 import Index from "./pages/Index";
 import Explore from "./pages/Explore";
+import MosqueDetail from "./pages/MosqueDetail";
+import Submit from "./pages/Submit";
+import Dashboard from "./pages/Admin/Dashboard";
+import Submissions from "./pages/Admin/Submissions";
+import Mosques from "./pages/Admin/Mosques";
+import Users from "./pages/Admin/Users";
+import AuditLog from "./pages/Admin/AuditLog";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-const App = () => (
-  <HelmetProvider>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/explore" element={<Explore />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </HelmetProvider>
-);
+const App = () => {
+  // Initialize PocketBase
+  usePocketBase();
+
+  return (
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/explore" element={<Explore />} />
+              <Route path="/mosque/:id" element={<MosqueDetail />} />
+              <Route path="/submit" element={<Submit />} />
+              
+              {/* Admin routes */}
+              <Route path="/admin" element={<Dashboard />} />
+              <Route path="/admin/submissions" element={<Submissions />} />
+              <Route path="/admin/mosques" element={<Mosques />} />
+              <Route path="/admin/users" element={<Users />} />
+              <Route path="/admin/audit" element={<AuditLog />} />
+              
+              {/* Catch-all */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </HelmetProvider>
+  );
+};
 
 export default App;
