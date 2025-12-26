@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useForm } from 'react-hook-form';
@@ -16,7 +16,7 @@ import { useMosque } from '@/hooks/use-mosques';
 import { useAuthStore } from '@/stores/auth';
 import { useTranslation } from '@/hooks/use-translation';
 import { SkipLink } from '@/components/SkipLink';
-import { AuthGuard } from '@/components/Auth/AuthGuard';
+import { AuthDialog } from '@/components/Auth/AuthDialog';
 import { toast } from 'sonner';
 import { validateImageFile } from '@/lib/pocketbase-images';
 import { X } from 'lucide-react';
@@ -48,6 +48,8 @@ const Submit = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState<MosqueFormData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const mosqueSchema = createMosqueSchema(t);
@@ -66,6 +68,59 @@ const Submit = () => {
       lng: 101.6869,
     },
   });
+
+  // Define handleFormSubmission with useCallback to use in useEffect
+  const handleFormSubmission = useCallback(async (data: MosqueFormData) => {
+    if (!user) {
+      return;
+    }
+
+    // Validate image if provided
+    if (imageFile) {
+      const validationError = validateImageFile(imageFile);
+      if (validationError) {
+        setImageError(validationError);
+        return;
+      }
+    }
+
+    try {
+      setError(null);
+      setImageError(null);
+      
+      await createSubmission.mutateAsync({
+        type: editId ? 'edit_mosque' : 'new_mosque',
+        mosque_id: editId || undefined,
+        data: {
+          ...data,
+          // Don't include image in data - it's handled separately via FormData
+        },
+        status: 'pending',
+        submitted_by: user.id,
+        submitted_at: new Date().toISOString(),
+        imageFile, // Pass image file separately for FormData handling
+      });
+      
+      toast.success(t('submit.success'));
+      navigate('/explore');
+    } catch (err: any) {
+      setError(err.message || t('submit.error'));
+    }
+  }, [user, imageFile, editId, createSubmission, t, navigate]);
+
+  // Check if user is logged in after auth dialog closes
+  useEffect(() => {
+    if (!showAuthDialog) {
+      if (user && pendingFormData) {
+        // User logged in, submit the pending form
+        handleFormSubmission(pendingFormData);
+        setPendingFormData(null);
+      } else if (!user && pendingFormData) {
+        // Dialog closed without login, clear pending data
+        setPendingFormData(null);
+      }
+    }
+  }, [showAuthDialog, user, pendingFormData, handleFormSubmission]);
 
   useEffect(() => {
     if (existingMosque) {
@@ -153,47 +208,21 @@ const Submit = () => {
     }
   };
 
+
   const onSubmit = async (data: MosqueFormData) => {
     if (!user) {
-      setError(t('submit.must_login'));
+      // Show auth dialog instead of error message
+      setPendingFormData(data);
+      setShowAuthDialog(true);
       return;
     }
 
-    // Validate image if provided
-    if (imageFile) {
-      const validationError = validateImageFile(imageFile);
-      if (validationError) {
-        setImageError(validationError);
-        return;
-      }
-    }
-
-    try {
-      setError(null);
-      setImageError(null);
-      
-      await createSubmission.mutateAsync({
-        type: editId ? 'edit_mosque' : 'new_mosque',
-        mosque_id: editId || undefined,
-        data: {
-          ...data,
-          // Don't include image in data - it's handled separately via FormData
-        },
-        status: 'pending',
-        submitted_by: user.id,
-        submitted_at: new Date().toISOString(),
-        imageFile, // Pass image file separately for FormData handling
-      });
-      
-      toast.success(t('submit.success'));
-      navigate('/explore');
-    } catch (err: any) {
-      setError(err.message || t('submit.error'));
-    }
+    // User is logged in, proceed with submission
+    await handleFormSubmission(data);
   };
 
   return (
-    <AuthGuard>
+    <>
       <SkipLink />
       <Helmet>
         <title>{editId ? t('meta.edit_title') : t('meta.submit_title')} - lepakmasjid</title>
@@ -339,7 +368,9 @@ const Submit = () => {
 
         <Footer />
       </div>
-    </AuthGuard>
+
+      <AuthDialog open={showAuthDialog} onOpenChange={setShowAuthDialog} />
+    </>
   );
 };
 
