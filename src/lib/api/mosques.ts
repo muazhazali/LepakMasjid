@@ -71,11 +71,8 @@ export const mosquesApi = {
   // List mosques with filters
   async list(filters?: MosqueFilters): Promise<Mosque[]> {
     try {
-      // Build filter parts
+      // Build filter parts (without status filter to avoid 400 errors)
       const filterParts: string[] = [];
-      
-      // Try to filter by approved status
-      filterParts.push('status = "approved"');
       
       if (filters) {
         if (filters.state && filters.state !== 'all') {
@@ -100,108 +97,79 @@ export const mosquesApi = {
         }
       }
       
-      const filterString = filterParts.join(' && ');
-      const sortString = filters?.sortBy ? this.getSortString(filters.sortBy) : '-created';
+      // Build query options
+      const queryOptions: any = {};
       
-      // Try query with status filter
-      try {
-        const result = await pb.collection('mosques').getList(1, 50, {
-          filter: filterString,
-          sort: sortString,
-        });
-        const mosques = result.items as unknown as Mosque[];
-        
-        // Fetch and attach amenities to mosques
-        return await attachAmenitiesToMosques(mosques);
-      } catch (statusError: any) {
-        // If status filter fails with 400, try without it
-        if (statusError.status === 400) {
-          console.warn('⚠️ Query with status filter failed, trying without status filter');
-          
-          // Build filter without status
-          const filterPartsNoStatus: string[] = [];
-          
-          if (filters) {
-            if (filters.state && filters.state !== 'all') {
-              // Validate state against allowlist to prevent filter injection
-              if (!validateState(filters.state)) {
-                throw new Error('Invalid state parameter');
-              }
-              filterPartsNoStatus.push(`state = "${filters.state}"`);
-            }
-            
-            if (filters.search && filters.search.trim()) {
-              // Sanitize search term to prevent filter injection
-              const sanitizedSearch = sanitizeSearchTerm(filters.search);
-              if (sanitizedSearch) {
-                filterPartsNoStatus.push(`(name ~ "${sanitizedSearch}" || address ~ "${sanitizedSearch}" || state ~ "${sanitizedSearch}")`);
-              }
-            }
-          }
-          
-          const filterStringNoStatus = filterPartsNoStatus.length > 0 ? filterPartsNoStatus.join(' && ') : undefined;
-          
-          try {
-            const result = await pb.collection('mosques').getList(1, 50, {
-              ...(filterStringNoStatus && { filter: filterStringNoStatus }),
-              sort: sortString,
-            });
-            
-            // Filter client-side by status if available
-            const items = result.items as unknown as Mosque[];
-            const mosques = items.filter((mosque: any) => !mosque.status || mosque.status === 'approved');
-            
-            // Fetch and attach amenities to mosques
-            return await attachAmenitiesToMosques(mosques);
-          } catch (noStatusError: any) {
-            // If even the query without status fails, try the most basic query
-            console.warn('⚠️ Query without status filter also failed, trying basic query');
-            
-            try {
-              const result = await pb.collection('mosques').getList(1, 50);
-              const items = result.items as unknown as Mosque[];
-              // Filter client-side by status and other filters if available
-              let filtered = items.filter((mosque: any) => !mosque.status || mosque.status === 'approved');
-              
-              if (filters) {
-                if (filters.state && filters.state !== 'all') {
-                  filtered = filtered.filter((m: any) => m.state === filters.state);
-                }
-                if (filters.search && filters.search.trim()) {
-                  const searchLower = filters.search.toLowerCase().trim();
-                  filtered = filtered.filter((m: any) => 
-                    m.name?.toLowerCase().includes(searchLower) ||
-                    m.address?.toLowerCase().includes(searchLower) ||
-                    m.state?.toLowerCase().includes(searchLower)
-                  );
-                }
-              }
-              
-              // Fetch and attach amenities to mosques
-              return await attachAmenitiesToMosques(filtered);
-            } catch (basicError: any) {
-              // Log the actual error from PocketBase
-              console.error('❌ All query attempts failed');
-              console.error('Basic query error:', {
-                status: basicError.status,
-                message: basicError.message,
-                data: basicError.data,
-                url: basicError.url,
-              });
-              
-              throw new Error(
-                basicError.data?.message || 
-                basicError.message || 
-                'Failed to fetch mosques. The collection may not exist or may not be accessible.'
-              );
-            }
-          }
-        } else {
-          // Re-throw if it's not a 400 error
-          throw statusError;
+      // Add filter if we have any filter parts
+      if (filterParts.length > 0) {
+        queryOptions.filter = filterParts.join(' && ');
+      }
+      
+      // Add sort if specified, otherwise skip sort to avoid potential issues
+      if (filters?.sortBy) {
+        const sortString = this.getSortString(filters.sortBy);
+        if (sortString) {
+          queryOptions.sort = sortString;
         }
       }
+      
+      // Fetch mosques from PocketBase (without status filter to avoid 400 errors)
+      const result = await pb.collection('mosques').getList(1, 50, queryOptions);
+      
+      const items = result.items as unknown as Mosque[];
+      
+      // Filter client-side by status (only show approved mosques)
+      let filtered = items.filter((mosque: any) => !mosque.status || mosque.status === 'approved');
+      
+      // Apply any additional client-side filtering if needed
+      if (filters) {
+        // State filter is already applied in the query, but double-check
+        if (filters.state && filters.state !== 'all') {
+          filtered = filtered.filter((m: any) => m.state === filters.state);
+        }
+      }
+      
+      // Sort client-side if needed (for cases where server-side sort might fail)
+      if (filters?.sortBy) {
+        switch (filters.sortBy) {
+          case 'alphabetical':
+            filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            break;
+          case 'most_amenities':
+            // Sort by number of amenities (descending)
+            filtered.sort((a, b) => {
+              const aCount = (a.amenities?.length || 0) + (a.customAmenities?.length || 0);
+              const bCount = (b.amenities?.length || 0) + (b.customAmenities?.length || 0);
+              return bCount - aCount;
+            });
+            break;
+          default:
+            // Default: sort by created date (newest first)
+            filtered.sort((a, b) => {
+              const aDate = new Date(a.created || 0).getTime();
+              const bDate = new Date(b.created || 0).getTime();
+              return bDate - aDate;
+            });
+        }
+      } else {
+        // Default sort by created date (newest first)
+        filtered.sort((a, b) => {
+          const aDate = new Date(a.created || 0).getTime();
+          const bDate = new Date(b.created || 0).getTime();
+          return bDate - aDate;
+        });
+      }
+      
+      // Fetch and attach amenities to mosques
+      return await attachAmenitiesToMosques(filtered);
     } catch (error: any) {
+      // Log the error for debugging
+      console.error('Failed to fetch mosques:', {
+        status: error.status,
+        message: error.message,
+        data: error.data,
+      });
+      
       // Sanitize error to prevent information disclosure
       throw sanitizeError(error);
     }
