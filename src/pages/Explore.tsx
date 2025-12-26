@@ -114,7 +114,7 @@ const Explore = () => {
                         </span>
                       )}
                     </Button>
-                    <div className="hidden sm:flex border border-border rounded-lg overflow-hidden">
+                    <div className="flex border border-border rounded-lg overflow-hidden">
                       <Button
                         variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                         size="icon"
