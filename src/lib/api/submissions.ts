@@ -4,6 +4,7 @@ import { validateSubmissionStatus, validateRecordId } from '../validation';
 import { sanitizeError } from '../error-handler';
 import { validateImageFile, createFormDataWithImage, getImageFileFromRecord } from '../pocketbase-images';
 import { mosquesApi } from './mosques';
+import { amenitiesApi, mosqueAmenitiesApi } from './amenities';
 
 export const submissionsApi = {
   // List submissions (admin only)
@@ -98,14 +99,25 @@ export const submissionsApi = {
       });
       
       // Add the data field as JSON string (PocketBase JSON field type requires stringified JSON)
-      // This contains the mosque data (name, address, lat, lng, etc.) without the image
+      // This contains the mosque data (name, address, lat, lng, amenities, etc.) without the image
       formData.append('data', JSON.stringify(dataWithoutImage));
       
-      // Add the image file - must be appended as a File object
+      // Add the image file LAST - must be appended as a File object
       // PocketBase will handle the file upload automatically
-      formData.append('image', imageFile);
+      // Note: Some servers require the file to be appended last
+      formData.append('image', imageFile, imageFile.name);
       
-      return await pb.collection('submissions').create(formData) as unknown as Submission;
+      try {
+        return await pb.collection('submissions').create(formData) as unknown as Submission;
+      } catch (error: any) {
+        // Log the error for debugging
+        console.error('Error creating submission with image:', error);
+        // Re-throw with a more helpful message
+        if (error.response?.data) {
+          console.error('PocketBase error details:', error.response.data);
+        }
+        throw error;
+      }
     }
 
     // Otherwise, create normally without image
@@ -178,10 +190,13 @@ export const submissionsApi = {
       }
     }
     
+    let createdMosqueId: string | undefined;
+    
     if (submission.type === 'new_mosque') {
       // Create the mosque with sanitized data and image
       // Use mosquesApi.create which handles image upload securely
-      await mosquesApi.create(sanitizedData, imageFile);
+      const createdMosque = await mosquesApi.create(sanitizedData, imageFile);
+      createdMosqueId = createdMosque.id;
     } else if (submission.type === 'edit_mosque' && submission.mosque_id) {
       // Validate mosque ID format
       if (!validateRecordId(submission.mosque_id)) {
@@ -189,6 +204,72 @@ export const submissionsApi = {
       }
       // Update the mosque with sanitized data and image (only allowed fields)
       await mosquesApi.update(submission.mosque_id, sanitizedData, imageFile);
+      createdMosqueId = submission.mosque_id;
+    }
+    
+    // Handle amenities from submission
+    if (createdMosqueId && submission.data) {
+      const submissionData = submission.data as any;
+      const amenities = submissionData.amenities || [];
+      const customAmenities = submissionData.customAmenities || [];
+      
+      // Process regular amenities
+      const amenityData = amenities.map((amenity: any) => ({
+        amenity_id: amenity.amenity_id,
+        details: amenity.details || {},
+        verified: amenity.verified ?? false,
+      }));
+      
+      // Process custom amenities - create them in amenities collection first
+      for (const custom of customAmenities) {
+        try {
+          // Check if custom amenity already exists
+          let customAmenityId: string | null = null;
+          try {
+            const existing = await pb.collection('amenities').getFirstListItem(`key="${custom.key}"`);
+            customAmenityId = existing.id;
+          } catch (err: any) {
+            // If not found, create it
+            if (err.status === 404) {
+              const createdCustom = await amenitiesApi.createCustom({
+                key: custom.key,
+                label_en: custom.custom_name_en || custom.custom_name || '',
+                label_bm: custom.custom_name || '',
+                icon: custom.custom_icon,
+                order: 0,
+              });
+              customAmenityId = createdCustom.id;
+            } else {
+              console.warn('Error checking for existing custom amenity:', err);
+            }
+          }
+          
+          if (customAmenityId) {
+            amenityData.push({
+              amenity_id: customAmenityId,
+              details: {
+                ...custom.details,
+                custom_name: custom.custom_name,
+                custom_name_en: custom.custom_name_en,
+                custom_icon: custom.custom_icon,
+              },
+              verified: false,
+            });
+          }
+        } catch (err) {
+          console.warn('Failed to create custom amenity:', err);
+        }
+      }
+      
+      // Replace all amenities for the mosque
+      if (amenityData.length > 0 || amenities.length > 0 || customAmenities.length > 0) {
+        try {
+          await mosqueAmenitiesApi.replaceAll(createdMosqueId, amenityData);
+        } catch (err) {
+          console.warn('Failed to update mosque amenities:', err);
+          // Don't fail the submission approval if amenities fail
+        }
+      }
     }
     
     // Update submission status

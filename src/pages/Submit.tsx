@@ -11,15 +11,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useCreateSubmission } from '@/hooks/use-submissions';
 import { useMosque } from '@/hooks/use-mosques';
+import { useAmenities } from '@/hooks/use-amenities';
 import { useAuthStore } from '@/stores/auth';
 import { useTranslation } from '@/hooks/use-translation';
+import { useLanguageStore } from '@/stores/language';
 import { SkipLink } from '@/components/SkipLink';
 import { AuthDialog } from '@/components/Auth/AuthDialog';
 import { toast } from 'sonner';
 import { validateImageFile } from '@/lib/pocketbase-images';
-import { X } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
+import type { Amenity, MosqueAmenityDetails } from '@/types';
 
 const createMosqueSchema = (t: (key: string) => string) => z.object({
   name: z.string().min(2, t('form.name_required')),
@@ -36,13 +40,28 @@ const createMosqueSchema = (t: (key: string) => string) => z.object({
   description_bm: z.string().optional(),
 });
 
+interface SelectedAmenity {
+  amenity_id: string;
+  details: MosqueAmenityDetails;
+}
+
+interface CustomAmenity {
+  key: string;
+  label_en: string;
+  label_bm: string;
+  icon?: string;
+  details: MosqueAmenityDetails;
+}
+
 const Submit = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const editId = searchParams.get('edit');
   const { data: existingMosque } = useMosque(editId);
+  const { data: amenities = [], isLoading: amenitiesLoading } = useAmenities();
   const { user } = useAuthStore();
   const { t } = useTranslation();
+  const { language } = useLanguageStore();
   const createSubmission = useCreateSubmission();
   const [error, setError] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -51,6 +70,18 @@ const Submit = () => {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [pendingFormData, setPendingFormData] = useState<MosqueFormData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Amenities state
+  const [selectedAmenities, setSelectedAmenities] = useState<Map<string, SelectedAmenity>>(new Map());
+  const [customAmenities, setCustomAmenities] = useState<CustomAmenity[]>([]);
+  const [showCustomAmenityForm, setShowCustomAmenityForm] = useState(false);
+  const [newCustomAmenity, setNewCustomAmenity] = useState<Partial<CustomAmenity>>({
+    key: '',
+    label_en: '',
+    label_bm: '',
+    icon: '',
+    details: { notes: '' },
+  });
 
   const mosqueSchema = createMosqueSchema(t);
   type MosqueFormData = z.infer<typeof mosqueSchema>;
@@ -88,11 +119,28 @@ const Submit = () => {
       setError(null);
       setImageError(null);
       
+      // Prepare amenities data
+      const amenitiesData = Array.from(selectedAmenities.values()).map(amenity => ({
+        amenity_id: amenity.amenity_id,
+        details: amenity.details,
+        verified: false,
+      }));
+
+      const customAmenitiesData = customAmenities.map(custom => ({
+        custom_name: custom.label_bm,
+        custom_name_en: custom.label_en,
+        custom_icon: custom.icon,
+        key: custom.key,
+        details: custom.details,
+      }));
+
       await createSubmission.mutateAsync({
         type: editId ? 'edit_mosque' : 'new_mosque',
         mosque_id: editId || undefined,
         data: {
           ...data,
+          amenities: amenitiesData,
+          customAmenities: customAmenitiesData,
           // Don't include image in data - it's handled separately via FormData
         },
         status: 'pending',
@@ -132,6 +180,30 @@ const Submit = () => {
       setValue('lng', existingMosque.lng);
       setValue('description', existingMosque.description || '');
       setValue('description_bm', existingMosque.description_bm || '');
+      
+      // Load existing amenities
+      const amenityMap = new Map<string, SelectedAmenity>();
+      if (existingMosque.amenities) {
+        existingMosque.amenities.forEach((amenity) => {
+          amenityMap.set(amenity.id, {
+            amenity_id: amenity.id,
+            details: amenity.details || { notes: '' },
+          });
+        });
+      }
+      if (existingMosque.customAmenities) {
+        existingMosque.customAmenities.forEach((custom) => {
+          const customAmenity: CustomAmenity = {
+            key: custom.details.custom_name || '',
+            label_en: custom.details.custom_name_en || '',
+            label_bm: custom.details.custom_name || '',
+            icon: custom.details.custom_icon,
+            details: custom.details,
+          };
+          setCustomAmenities(prev => [...prev, customAmenity]);
+        });
+      }
+      setSelectedAmenities(amenityMap);
     }
   }, [existingMosque, setValue]);
 
@@ -208,6 +280,89 @@ const Submit = () => {
     }
   };
 
+
+  const handleAmenityToggle = (amenityId: string) => {
+    const newMap = new Map(selectedAmenities);
+    if (newMap.has(amenityId)) {
+      newMap.delete(amenityId);
+    } else {
+      newMap.set(amenityId, {
+        amenity_id: amenityId,
+        details: { notes: '' },
+      });
+    }
+    setSelectedAmenities(newMap);
+  };
+
+  const handleAmenityDetailsChange = (amenityId: string, notes: string) => {
+    const newMap = new Map(selectedAmenities);
+    const existing = newMap.get(amenityId);
+    if (existing) {
+      newMap.set(amenityId, {
+        ...existing,
+        details: { ...existing.details, notes },
+      });
+    }
+    setSelectedAmenities(newMap);
+  };
+
+  const handleAddCustomAmenity = () => {
+    if (!newCustomAmenity.key || !newCustomAmenity.label_en || !newCustomAmenity.label_bm) {
+      toast.error('Please fill in all required fields for custom amenity');
+      return;
+    }
+
+    // Validate key format
+    if (!/^[a-z0-9_]+$/.test(newCustomAmenity.key)) {
+      toast.error('Key must be lowercase letters, numbers, and underscores only');
+      return;
+    }
+
+    // Check if key already exists in amenities
+    const keyExists = amenities.some(a => a.key === newCustomAmenity.key);
+    if (keyExists) {
+      toast.error('This key already exists. Please use a different key.');
+      return;
+    }
+
+    // Check if key already exists in custom amenities
+    const customKeyExists = customAmenities.some(c => c.key === newCustomAmenity.key);
+    if (customKeyExists) {
+      toast.error('This key is already added. Please use a different key.');
+      return;
+    }
+
+    setCustomAmenities([...customAmenities, {
+      key: newCustomAmenity.key,
+      label_en: newCustomAmenity.label_en,
+      label_bm: newCustomAmenity.label_bm,
+      icon: newCustomAmenity.icon || 'circle',
+      details: newCustomAmenity.details || { notes: '' },
+    }]);
+
+    // Reset form
+    setNewCustomAmenity({
+      key: '',
+      label_en: '',
+      label_bm: '',
+      icon: '',
+      details: { notes: '' },
+    });
+    setShowCustomAmenityForm(false);
+  };
+
+  const handleRemoveCustomAmenity = (index: number) => {
+    setCustomAmenities(customAmenities.filter((_, i) => i !== index));
+  };
+
+  const handleCustomAmenityDetailsChange = (index: number, notes: string) => {
+    const updated = [...customAmenities];
+    updated[index] = {
+      ...updated[index],
+      details: { ...updated[index].details, notes },
+    };
+    setCustomAmenities(updated);
+  };
 
   const onSubmit = async (data: MosqueFormData) => {
     if (!user) {
@@ -312,6 +467,178 @@ const Submit = () => {
                 <div className="space-y-2">
                   <Label htmlFor="description_bm">{t('submit.description_bm')}</Label>
                   <Textarea id="description_bm" {...register('description_bm')} rows={4} />
+                </div>
+              </div>
+
+              {/* Amenities Section */}
+              <div className="space-y-4">
+                <div>
+                  <Label>{t('submit.amenities')}</Label>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {t('submit.amenities_hint')}
+                  </p>
+                  
+                  {amenitiesLoading ? (
+                    <div className="text-sm text-muted-foreground">{t('common.loading')}</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {amenities.map((amenity) => {
+                        const isChecked = selectedAmenities.has(amenity.id);
+                        const label = language === 'bm' ? amenity.label_bm : amenity.label_en;
+                        
+                        return (
+                          <div key={amenity.id} className="space-y-2 border rounded-lg p-3">
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`amenity-${amenity.id}`}
+                                checked={isChecked}
+                                onCheckedChange={() => handleAmenityToggle(amenity.id)}
+                              />
+                              <Label
+                                htmlFor={`amenity-${amenity.id}`}
+                                className="font-medium cursor-pointer flex-1"
+                              >
+                                {label}
+                              </Label>
+                            </div>
+                            {isChecked && (
+                              <div className="ml-6 space-y-2">
+                                <Label htmlFor={`amenity-details-${amenity.id}`} className="text-sm">
+                                  {t('submit.amenity_details')}
+                                </Label>
+                                <Input
+                                  id={`amenity-details-${amenity.id}`}
+                                  value={selectedAmenities.get(amenity.id)?.details?.notes || ''}
+                                  onChange={(e) => handleAmenityDetailsChange(amenity.id, e.target.value)}
+                                  placeholder={t('submit.amenity_details_placeholder')}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Custom Amenities */}
+                <div className="space-y-3">
+                  {customAmenities.map((custom, index) => {
+                    const label = language === 'bm' ? custom.label_bm : custom.label_en;
+                    return (
+                      <div key={index} className="border rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium">{label}</div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveCustomAmenity(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-sm">{t('submit.amenity_details')}</Label>
+                          <Input
+                            value={custom.details?.notes || ''}
+                            onChange={(e) => handleCustomAmenityDetailsChange(index, e.target.value)}
+                            placeholder={t('submit.amenity_details_placeholder')}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {!showCustomAmenityForm ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowCustomAmenityForm(true)}
+                      className="w-full"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      {t('submit.add_custom_amenity')}
+                    </Button>
+                  ) : (
+                    <div className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="font-medium">{t('submit.add_custom_amenity')}</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setShowCustomAmenityForm(false);
+                            setNewCustomAmenity({
+                              key: '',
+                              label_en: '',
+                              label_bm: '',
+                              icon: '',
+                              details: { notes: '' },
+                            });
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="custom-key">{t('submit.custom_amenity_key')} *</Label>
+                        <Input
+                          id="custom-key"
+                          value={newCustomAmenity.key || ''}
+                          onChange={(e) => setNewCustomAmenity({ ...newCustomAmenity, key: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+                          placeholder={t('submit.custom_amenity_key_placeholder')}
+                        />
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="custom-label-en">{t('submit.custom_amenity_name_en')} *</Label>
+                          <Input
+                            id="custom-label-en"
+                            value={newCustomAmenity.label_en || ''}
+                            onChange={(e) => setNewCustomAmenity({ ...newCustomAmenity, label_en: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="custom-label-bm">{t('submit.custom_amenity_name_bm')} *</Label>
+                          <Input
+                            id="custom-label-bm"
+                            value={newCustomAmenity.label_bm || ''}
+                            onChange={(e) => setNewCustomAmenity({ ...newCustomAmenity, label_bm: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="custom-icon">{t('submit.custom_amenity_icon')}</Label>
+                        <Input
+                          id="custom-icon"
+                          value={newCustomAmenity.icon || ''}
+                          onChange={(e) => setNewCustomAmenity({ ...newCustomAmenity, icon: e.target.value })}
+                          placeholder="e.g., circle, wifi, car"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="custom-details">{t('submit.amenity_details')}</Label>
+                        <Input
+                          id="custom-details"
+                          value={newCustomAmenity.details?.notes || ''}
+                          onChange={(e) => setNewCustomAmenity({ 
+                            ...newCustomAmenity, 
+                            details: { ...newCustomAmenity.details, notes: e.target.value } 
+                          })}
+                          placeholder={t('submit.amenity_details_placeholder')}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={handleAddCustomAmenity}
+                        className="w-full"
+                      >
+                        {t('common.add') || 'Add'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
