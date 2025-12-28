@@ -32,13 +32,6 @@ const CTASection = () => {
                 {t('cta.add_mosque')}
               </Link>
             </Button>
-            <Button 
-              variant="ghost" 
-              size="xl" 
-              className="text-primary-foreground border-2 border-primary-foreground/30 hover:bg-primary-foreground/10 hover:text-primary-foreground"
-            >
-              {t('cta.learn_more')}
-            </Button>
           </div>
         </div>
       </div>
