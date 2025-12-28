@@ -123,10 +123,6 @@ const Submit = () => {
     watch,
   } = useForm<MosqueFormData>({
     resolver: zodResolver(mosqueSchema),
-    defaultValues: {
-      lat: 3.1390,
-      lng: 101.6869,
-    },
   });
 
   // Define handleFormSubmission with useCallback to use in useEffect
@@ -519,7 +515,7 @@ const Submit = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">{t('submit.name_en')} *</Label>
-                  <Input id="name" {...register('name')} />
+                  <Input id="name" {...register('name')} placeholder="e.g., Al-Khairiah Mosque" />
                   {errors.name && (
                     <p className="text-sm text-destructive">{errors.name.message}</p>
                   )}
@@ -527,13 +523,13 @@ const Submit = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="name_bm">{t('submit.name_bm')}</Label>
-                  <Input id="name_bm" {...register('name_bm')} />
+                  <Input id="name_bm" {...register('name_bm')} placeholder="e.g., Masjid Al-Khairiah" />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="address">{t('submit.address')} *</Label>
-                <Input id="address" {...register('address')} />
+                <Input id="address" {...register('address')} placeholder="e.g., Jalan Bunga Raya, 54200 Kuala Lumpur" />
                 {errors.address && (
                   <p className="text-sm text-destructive">{errors.address.message}</p>
                 )}
@@ -555,6 +551,7 @@ const Submit = () => {
                     type="number"
                     step="any"
                     {...register('lat', { valueAsNumber: true })}
+                    placeholder="e.g., 3.1390"
                   />
                   {errors.lat && (
                     <p className="text-sm text-destructive">{errors.lat.message}</p>
@@ -568,6 +565,7 @@ const Submit = () => {
                     type="number"
                     step="any"
                     {...register('lng', { valueAsNumber: true })}
+                    placeholder="e.g., 101.6869"
                   />
                   {errors.lng && (
                     <p className="text-sm text-destructive">{errors.lng.message}</p>
@@ -578,12 +576,12 @@ const Submit = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="description">{t('submit.description_en')}</Label>
-                  <Textarea id="description" {...register('description')} rows={4} />
+                  <Textarea id="description" {...register('description')} rows={4} placeholder="e.g., A beautiful mosque located in the heart of Kuala Lumpur" />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="description_bm">{t('submit.description_bm')}</Label>
-                  <Textarea id="description_bm" {...register('description_bm')} rows={4} />
+                  <Textarea id="description_bm" {...register('description_bm')} rows={4} placeholder="e.g., Masjid yang cantik terletak di tengah-tengah Kuala Lumpur" />
                 </div>
               </div>
 
