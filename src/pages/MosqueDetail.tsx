@@ -66,6 +66,8 @@ const MosqueDetail = () => {
       ? mosque.description_bm
       : mosque.description;
 
+  const name_bm = mosque.name_bm
+  const name = mosque.name
   // Get image URL for the mosque
   const imageUrl = getImageUrl(mosque, mosque.image);
 
@@ -239,7 +241,7 @@ const MosqueDetail = () => {
                 </div>
               </div>
             )}
-            <SedekahQR masjidName={displayName}></SedekahQR>
+            <SedekahQR masjidName_BM={name_bm} masjidName_Eng={name}></SedekahQR>
           </div>
         </main>
 
