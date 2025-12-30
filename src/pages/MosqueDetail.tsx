@@ -21,7 +21,7 @@ const MosqueDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: mosque, isLoading } = useMosque(id || null);
-  console.log("mosquedata",mosque)
+  console.log("mosquedata", mosque);
   const { isAuthenticated } = useAuthStore();
   const { t } = useTranslation();
   const { language } = useLanguageStore();
@@ -152,7 +152,10 @@ const MosqueDetail = () => {
               />
             </div>
 
-            <OpenMapsButton lat={mosque?.lat} lng={mosque?.lng}></OpenMapsButton>
+            <OpenMapsButton
+              lat={mosque?.lat}
+              lng={mosque?.lng}
+            ></OpenMapsButton>
 
             {/* Amenities */}
             {mosque.amenities && mosque.amenities.length > 0 && (
@@ -236,11 +239,11 @@ const MosqueDetail = () => {
                 </div>
               </div>
             )}
+            <SedekahQR masjidName={displayName}></SedekahQR>
           </div>
         </main>
 
-        {/* Sedekah je */}
-        <SedekahQR masjidName={displayName}></SedekahQR>
+        {/* Sedekah je */}  
         <Footer />
       </div>
     </>

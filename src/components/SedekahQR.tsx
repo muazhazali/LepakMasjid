@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink } from "lucide-react";
+import { sedekahApi } from "@/lib/sedekahQR";
 
 interface SedekahQRProps {
   masjidName: string;
@@ -15,31 +22,14 @@ const SedekahQR: React.FC<SedekahQRProps> = ({ masjidName }) => {
 
   useEffect(() => {
     async function fetchQR() {
+      if (!masjidName) return;
+
       setIsLoading(true);
       setError(false);
-      const url = masjidName.toLowerCase().trim().replace(/\s+/g, "-");
-      const fullUrl = `/sedekah-proxy/mosque/${url}`;
 
       try {
-        const res = await fetch(fullUrl);
-        if (!res.ok) throw new Error("Failed to fetch");
-        
-        const html = await res.text();
-
-        // Parse HTML string into a DOM
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
-
-        // Find the SVG inside the DuitNow button
-        const svg = doc.querySelector('button > div > svg');
-
-        if (svg) {
-          // Add some classes to the SVG to make it responsive
-          svg.setAttribute("class", "w-full h-full text-foreground");
-          setQrSvg(svg.outerHTML);
-        } else {
-          setError(true);
-        }
+        const res = await sedekahApi.getQR(masjidName);
+        setQrSvg(res.svg);
       } catch (err) {
         console.error(err);
         setError(true);
@@ -57,12 +47,13 @@ const SedekahQR: React.FC<SedekahQRProps> = ({ masjidName }) => {
         <CardTitle className="text-lg font-medium">Sedekah QR</CardTitle>
         <p className="text-sm text-muted-foreground">{masjidName}</p>
       </CardHeader>
-      <CardContent className="flex flex-col items-center justify-center p-6 pt-0">
-        <div className="w-64 h-64 bg-white rounded-xl p-4 shadow-sm border flex items-center justify-center relative overflow-hidden">
+
+      <CardContent className="flex justify-center p-6 pt-0">
+        <div className="w-64 h-64 bg-white rounded-xl p-4 border flex items-center justify-center">
           {isLoading ? (
             <Skeleton className="w-full h-full rounded-lg" />
           ) : error ? (
-            <div className="flex flex-col items-center justify-center text-center p-4 gap-2 text-muted-foreground">
+            <div className="flex flex-col items-center text-center gap-2 text-muted-foreground">
               <ExternalLink className="w-8 h-8 opacity-50" />
               <p className="text-sm font-medium">QR Not Found</p>
               <p className="text-xs">Try searching directly on Sedekah.je</p>
@@ -77,6 +68,7 @@ const SedekahQR: React.FC<SedekahQRProps> = ({ masjidName }) => {
           )}
         </div>
       </CardContent>
+
       <CardFooter className="flex flex-col gap-2 pt-0 pb-6 text-center">
         <div className="text-xs text-muted-foreground">
           Powered by
@@ -89,6 +81,7 @@ const SedekahQR: React.FC<SedekahQRProps> = ({ masjidName }) => {
             Sedekah.je
           </a>
         </div>
+
         <Button asChild size="sm" variant="outline" className="w-full mt-2">
           <a
             href="https://sedekah.je"
