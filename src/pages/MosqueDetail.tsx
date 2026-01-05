@@ -1,6 +1,7 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { MapPin, Edit, ArrowLeft, Calendar, Clock } from "lucide-react";
+import { MapPin, Edit, ArrowLeft, Calendar, Clock, Phone, Copy, Check } from "lucide-react";
+import { useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { getImageUrl } from "@/lib/pocketbase-images";
 import SedekahQR from "@/components/SedekahQR";
 import OpenMapsButton from "../components/OpenMapsButton";
 import Nearby from "@/components/Nearby";
+import { toast } from "sonner";
 
 const MosqueDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +27,20 @@ const MosqueDetail = () => {
   const { isAuthenticated } = useAuthStore();
   const { t } = useTranslation();
   const { language } = useLanguageStore();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyContact = async () => {
+    if (mosque?.contact) {
+      try {
+        await navigator.clipboard.writeText(mosque.contact);
+        setCopied(true);
+        toast.success(t("common.copied") || "Copied to clipboard!");
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        toast.error(t("common.copy_failed") || "Failed to copy");
+      }
+    }
+  };
 
   if (isLoading) {
     return (
@@ -122,9 +138,30 @@ const MosqueDetail = () => {
                     <span>{mosque.address}</span>
                   </div>
                   {mosque.contact && (
-                    <div className="flex items-center gap-2 text-muted-foreground mb-4">
-                      <span className="font-medium">{t("mosque.contact")}:</span>
-                      <span>{mosque.contact}</span>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-muted-foreground">
+                        {t("mosque.contact")}:
+                      </span>
+                      <a
+                        href={`tel:${mosque.contact}`}
+                        className="text-foreground hover:text-primary transition-colors"
+                      >
+                        {mosque.contact}
+                      </a>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={handleCopyContact}
+                        title={copied ? t("common.copied") || "Copied!" : t("common.copy") || "Copy"}
+                      >
+                        {copied ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
                   )}
                   <Badge variant="secondary">{mosque.state}</Badge>

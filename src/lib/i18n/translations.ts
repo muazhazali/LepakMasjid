@@ -39,6 +39,9 @@ export const translations = {
     "common.switch_dark": "Switch to dark mode",
     "common.user_menu": "User menu",
     "common.toggle_menu": "Toggle menu",
+    "common.copy": "Copy",
+    "common.copied": "Copied!",
+    "common.copy_failed": "Failed to copy",
 
     // Mosque
     "mosque.name": "Name",
@@ -545,6 +548,9 @@ export const translations = {
     "common.switch_dark": "Tukar ke mod gelap",
     "common.user_menu": "Menu pengguna",
     "common.toggle_menu": "Togol menu",
+    "common.copy": "Salin",
+    "common.copied": "Disalin!",
+    "common.copy_failed": "Gagal menyalin",
 
     // Mosque
     "mosque.name": "Nama",
