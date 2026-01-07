@@ -385,28 +385,23 @@ const Explore = () => {
                 {/* Results count */}
                 {!errorView && (
                   <p className="text-sm text-muted-foreground mb-6">
-                    {viewMode === "map" || (nearMeEnabled && userLocation) ? (
+                    {viewMode === "map" ? (
                       <>
                         {t("explore.showing")}{" "}
                         <span className="font-medium text-foreground">
                           {totalItems}
                         </span>{" "}
                         {t("explore.mosques")}
-                        {nearMeEnabled && userLocation && (
-                          <span className="ml-1">
-                            {t("filter.within_radius").replace("{distance}", radius.toString())}
-                          </span>
-                        )}
                       </>
                     ) : (
                       <>
                         {t("explore.showing")}{" "}
                         <span className="font-medium text-foreground">
-                          {Math.min((currentPage - 1) * PER_PAGE + 1, totalItems)}
+                          {totalItems > 0 ? (needsAllMosques ? 1 : (currentPage - 1) * PER_PAGE + 1) : 0}
                         </span>
                         {" - "}
                         <span className="font-medium text-foreground">
-                          {Math.min(currentPage * PER_PAGE, totalItems)}
+                          {needsAllMosques ? totalItems : Math.min(currentPage * PER_PAGE, totalItems)}
                         </span>
                         {" of "}
                         <span className="font-medium text-foreground">

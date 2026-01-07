@@ -268,7 +268,7 @@ const FilterSidebar = ({
               )}
 
               {/* Distance slider - always visible */}
-              <div className="space-y-3 p-3 rounded-lg bg-secondary/30 border border-border">
+              <div className="space-y-3 p-3 rounded-lg border border-border">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium text-muted-foreground">
                     {t("filter.distance")}
