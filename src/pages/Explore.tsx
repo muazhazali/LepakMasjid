@@ -29,44 +29,67 @@ const VIEW_MODE_STORAGE_KEY = "explore-view-mode";
 const PER_PAGE = 12;
 
 const Explore = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
-  const [selectedState, setSelectedState] = useState(
-    searchParams.get("state") || ""
-  );
 
-  // Initialize amenities from URL params
-  const [selectedAmenities, setSelectedAmenities] = useState<string[]>(() => {
+  // Read from URL params
+  const searchQuery = searchParams.get("q") || "";
+  const selectedState = searchParams.get("state") || "";
+  const selectedAmenities = useMemo(() => {
     const amenitiesParam = searchParams.get("amenities");
-    if (amenitiesParam) {
-      return amenitiesParam.split(",").filter(Boolean);
-    }
-    return [];
-  });
+    return amenitiesParam ? amenitiesParam.split(",").filter(Boolean) : [];
+  }, [searchParams]);
 
-  // Initialize view mode from localStorage or default to 'grid'
-  const [viewMode, setViewMode] = useState<"grid" | "list" | "map">(() => {
+  const viewMode: "grid" | "list" | "map" = useMemo(() => {
+    const urlView = searchParams.get("view");
+    if (urlView && ["grid", "list", "map"].includes(urlView)) {
+      return urlView as "grid" | "list" | "map";
+    }
     const saved = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
     return (saved as "grid" | "list" | "map") || "grid";
-  });
+  }, [searchParams]);
 
-  const [sortBy, setSortBy] = useState<
-    "nearest" | "most_amenities" | "alphabetical"
-  >("alphabetical");
-  const [currentPage, setCurrentPage] = useState(1);
+  const sortBy: "nearest" | "most_amenities" | "alphabetical" = useMemo(() => {
+    const urlSort = searchParams.get("sort");
+    if (urlSort && ["nearest", "most_amenities", "alphabetical"].includes(urlSort)) {
+      return urlSort as "nearest" | "most_amenities" | "alphabetical";
+    }
+    return "alphabetical";
+  }, [searchParams]);
+
+  const currentPage = useMemo(() => {
+    const pageParam = searchParams.get("page");
+    const page = pageParam ? parseInt(pageParam, 10) : 1;
+    return page > 0 ? page : 1;
+  }, [searchParams]);
 
   // Persist view mode to localStorage
   useEffect(() => {
     localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
   }, [viewMode]);
 
-  // Reset to page 1 when filters change
+  // Save scroll position before navigating away
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, selectedState, selectedAmenities, sortBy]);
+    const handleScroll = () => {
+      sessionStorage.setItem('explore-scroll', window.scrollY.toString());
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Restore scroll position when returning to page
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem('explore-scroll');
+    if (savedScroll) {
+      // Small delay to ensure content is rendered
+      setTimeout(() => {
+        window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'smooth' });
+      }, 100);
+    }
+  }, []);
 
   const filters: MosqueFilters = useMemo(
     () => ({
@@ -115,17 +138,60 @@ const Explore = () => {
   const totalPages = paginatedData?.totalPages || 1;
   const totalItems = paginatedData?.totalItems || mosques.length;
 
+  // Helper to update URL params
+  const updateParams = (updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams);
+    
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === "") {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+
+    setSearchParams(params, { replace: true });
+  };
+
+  const setSearchQuery = (query: string) => {
+    updateParams({ q: query, page: null }); // Reset page when searching
+  };
+
+  const setSelectedState = (state: string) => {
+    updateParams({ state, page: null }); // Reset page when filtering
+  };
+
+  const setSelectedAmenities = (amenities: string[]) => {
+    updateParams({ 
+      amenities: amenities.length > 0 ? amenities.join(",") : null,
+      page: null // Reset page when filtering
+    });
+  };
+
+  const setSortBy = (sort: "nearest" | "most_amenities" | "alphabetical") => {
+    updateParams({ 
+      sort: sort !== "alphabetical" ? sort : null,
+      page: null // Reset page when sorting
+    });
+  };
+
+  const setViewMode = (mode: "grid" | "list" | "map") => {
+    updateParams({ 
+      view: mode !== "grid" ? mode : null,
+      page: null // Reset page when changing view
+    });
+  };
+
+  const setCurrentPage = (page: number) => {
+    updateParams({ page: page > 1 ? page.toString() : null });
+  };
+
   const clearFilters = () => {
-    setSearchQuery("");
-    setSelectedState("");
-    setSelectedAmenities([]);
-    setCurrentPage(1);
-    navigate("/explore", { replace: true });
+    setSearchParams(new URLSearchParams(), { replace: true });
   };
 
   const handleViewModeChange = (mode: "grid" | "list" | "map") => {
     setViewMode(mode);
-    setCurrentPage(1); // Reset to first page when changing view mode
   };
 
   const activeFilterCount =
@@ -350,7 +416,7 @@ const Explore = () => {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   if (currentPage > 1) {
-                                    setCurrentPage((prev) => prev - 1);
+                                    setCurrentPage(currentPage - 1);
                                   }
                                 }}
                                 className={
@@ -406,7 +472,7 @@ const Explore = () => {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   if (currentPage < totalPages) {
-                                    setCurrentPage((prev) => prev + 1);
+                                    setCurrentPage(currentPage + 1);
                                   }
                                 }}
                                 className={
