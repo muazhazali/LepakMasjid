@@ -272,20 +272,20 @@ const FilterSidebar = ({
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium text-muted-foreground">
                     {t("filter.distance")}
-                  </Label>
+              </Label>
                   <span className={`text-sm font-semibold ${nearMeEnabled && userLocation ? "text-primary" : "text-muted-foreground"}`}>
                     {distance} km
                   </span>
                 </div>
-                <Slider
-                  value={[distance]}
-                  onValueChange={([value]) => onDistanceChange(value)}
-                  min={1}
+              <Slider
+                value={[distance]}
+                onValueChange={([value]) => onDistanceChange(value)}
+                min={1}
                   max={50}
-                  step={1}
-                  className="w-full"
+                step={1}
+                className="w-full"
                   disabled={!nearMeEnabled || !userLocation}
-                />
+              />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>1 km</span>
                   <span>50 km</span>
