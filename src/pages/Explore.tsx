@@ -218,8 +218,8 @@ const Explore = () => {
   };
 
   const setViewMode = (mode: "grid" | "list" | "map") => {
-    updateParams({ 
-      view: mode !== "grid" ? mode : null,
+    updateParams({
+      view: mode,
       page: null // Reset page when changing view
     });
   };
