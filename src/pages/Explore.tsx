@@ -8,6 +8,7 @@ import FilterSidebar from "@/components/FilterSidebar";
 import MosqueCard from "@/components/MosqueCard";
 import { MapView } from "@/components/Map/MapView";
 import { useNearMe } from "@/components/NearMe";
+import { LocationPermissionDialog, shouldShowLocationDialog } from "@/components/LocationPermissionDialog";
 import { calculateDistance } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ const Explore = () => {
   const { t } = useTranslation();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [showLocationDialog, setShowLocationDialog] = useState(false);
 
   // Near Me geolocation hook
   const {
@@ -89,6 +91,33 @@ const Explore = () => {
   useEffect(() => {
     localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
   }, [viewMode]);
+
+  // Show location permission dialog on mount if needed
+  useEffect(() => {
+    // Don't show dialog if user already has location or dialog was dismissed
+    if (userLocation) {
+      // User already has location, don't show dialog
+      setShowLocationDialog(false);
+      return;
+    }
+
+    if (!isLoadingLocation && shouldShowLocationDialog()) {
+      // Small delay to let the page render and location to be restored from storage
+      const timer = setTimeout(() => {
+        // Double check userLocation hasn't been set during the delay
+        setShowLocationDialog(true);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [userLocation, isLoadingLocation]);
+
+  const handleLocationAccept = () => {
+    requestLocation();
+  };
+
+  const handleLocationDecline = () => {
+    // User declined, dialog will handle saving preference if "never show again" is checked
+  };
 
   // Scroll to content area when page changes
   useEffect(() => {
@@ -173,8 +202,29 @@ const Explore = () => {
     return withDistance;
   }, [allMosquesData, nearMeEnabled, userLocation, radius]);
 
-  // Determine which mosques to display
-  const mosques = needsAllMosques ? filteredMosques : paginatedData?.items || [];
+  // Get base mosques list
+  const baseMosques = useMemo(() => {
+    return needsAllMosques ? filteredMosques : paginatedData?.items || [];
+  }, [needsAllMosques, filteredMosques, paginatedData?.items]);
+
+  // Add distance to all mosques when user location is available (even if nearMe is not enabled)
+  const mosques = useMemo(() => {
+    if (!userLocation || needsAllMosques) {
+      // If nearMeEnabled, distance is already calculated in filteredMosques
+      return baseMosques;
+    }
+
+    // Add distance to paginated mosques when we have user location
+    return baseMosques.map((mosque) => ({
+      ...mosque,
+      distance: calculateDistance(
+        userLocation.lat,
+        userLocation.lng,
+        mosque.lat,
+        mosque.lng
+      ),
+    }));
+  }, [baseMosques, userLocation, needsAllMosques]);
   const isLoadingView = needsAllMosques ? isLoadingAll : isLoading;
   const errorView = needsAllMosques ? errorAll : error;
   const totalPages = needsAllMosques ? 1 : paginatedData?.totalPages || 1;
@@ -257,6 +307,14 @@ const Explore = () => {
 
   return (
     <>
+      {/* Location Permission Dialog */}
+      <LocationPermissionDialog
+        open={showLocationDialog}
+        onOpenChange={setShowLocationDialog}
+        onAccept={handleLocationAccept}
+        onDecline={handleLocationDecline}
+      />
+
       <SkipLink />
       <Helmet>
         <title>{t("explore.title")} - LepakMasjid</title>
