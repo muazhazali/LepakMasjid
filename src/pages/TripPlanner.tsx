@@ -19,27 +19,45 @@ import { X } from "lucide-react";
 const TripPlanner = () => {
   const [fromValue, setFromValue] = useState("");
   const [toValue, setToValue] = useState("");
+
   const [showFromResults, setShowFromResults] = useState(false);
   const [showToResults, setShowToResults] = useState(false);
   const [fromPlace, setFromPlace] = useState<any>(null);
   const [toPlace, setToPlace] = useState<any>(null);
   const [selectedMosque, setSelectedMosque] = useState<Mosque | null>(null);
+
+  //autocomplete search result
   const { results: fromResults } = usePlaceSearch(fromValue);
   const { results: toResults } = usePlaceSearch(toValue);
+
+  //from and to coords
   const { coords: fromCoords } = useCoords(fromPlace);
   const { coords: toCoords } = useCoords(toPlace);
-  
-  const [searchTrigger, setSearchTrigger] = useState<{from: any, to: any} | null>(null);
-  const { routes, loading } = useRoutes(searchTrigger?.from, searchTrigger?.to);
+  //console.log(`fromCoords: ${fromCoords.lat}, ${fromCoords.lon}, toCoord:${toCoords.lat}, ${toCoords.lon}`)
+
+  const [searchTrigger, setSearchTrigger] = useState<{
+    from: any;
+    to: any;
+  } | null>(null);
+
+  // routes
+  const { routes, loading, duration, distance } = useRoutes(
+    searchTrigger?.from,
+    searchTrigger?.to
+  );
+  console.log("from page distnace", distance);
+  console.log("from page duration", duration);
+
+  //getting mosques
   const { data: mosques } = useMosquesAll();
   const { mosquesAlongRoute, closestMosque } = useRouteMosque(mosques, routes);
-  
+
   const handleSearch = () => {
     if (fromCoords && toCoords) {
       setSearchTrigger({ from: fromCoords, to: toCoords });
     }
   };
-  
+
   const handleFromSelect = (place: any) => {
     setFromValue(place.display_name);
     setFromPlace(place);
@@ -57,6 +75,28 @@ const TripPlanner = () => {
     : fromPlace
       ? { lat: parseFloat(fromPlace.lat), lon: parseFloat(fromPlace.lon) }
       : undefined;
+
+  function formatDistance(meters?: number) {
+    if (!meters) return "--";
+    if (meters < 1000) return `${Math.round(meters)} m`;
+    return `${(meters / 1000).toFixed(1)} km`;
+  }
+
+  function formatDuration(seconds?: number) {
+    if (!seconds) return "--";
+
+    //alert(seconds)
+
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.round((seconds % 3600) / 60);
+    //alert(hours)
+    //alert(minutes)
+
+    if (hours > 0) {
+      return `${hours} h ${minutes} min`;
+    }
+    return `${minutes} min`;
+  }
 
   return (
     <div className="min-h-screen flex flex-col supports-[height:100cqh]:h-[100cqh] supports-[height:100svh]:h-[100svh]">
@@ -151,7 +191,7 @@ const TripPlanner = () => {
               </div>
 
               {/* Search Button */}
-              <Button 
+              <Button
                 onClick={handleSearch}
                 disabled={!fromCoords || !toCoords || loading}
                 className="w-full py-6 text-base font-semibold shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all active:scale-[0.98]"
@@ -159,6 +199,24 @@ const TripPlanner = () => {
                 {loading ? "Calculating..." : "Search Route"}
                 {!loading && <ArrowRight className="ml-2 h-4 w-4" />}
               </Button>
+
+              {routes && routes.length > 0 && distance && duration && (
+                <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 border text-sm text-gray-700">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-blue-500" />
+                    <span className="font-medium">
+                      {formatDistance(distance)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Navigation className="h-4 w-4 text-green-500" />
+                    <span className="font-medium">
+                      {formatDuration(duration)}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Loading Indicator */}
               {loading && (
@@ -176,56 +234,72 @@ const TripPlanner = () => {
           </div>
 
           {/* Selected Mosque Card */}
-          {selectedMosque && (
-            <div className="mt-2 md:mt-4 bg-white/90 backdrop-blur-xl p-0 rounded-2xl shadow-2xl border border-white/20 overflow-hidden pointer-events-auto animate-in fade-in slide-in-from-left-4 duration-500 ring-1 ring-black/5">
-              <div className="relative group">
-                {/* Image Header */}
-                <div className="h-32 md:h-40 bg-gray-100 w-full relative overflow-hidden">
-                  {selectedMosque.image &&
-                  typeof selectedMosque.image === "string" ? (
-                    <img
-                      src={`https://pb.muaz.app/api/files/${selectedMosque.collectionId}/${selectedMosque.id}/${selectedMosque.image}`}
-                      alt={selectedMosque.name}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-300">
-                      <MapPin className="h-12 w-12 opacity-50" />
-                    </div>
-                  )}
-                  
-                  {/* Overlay Gradient */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-60" />
+        </div>
 
-                  <Button
-                    variant="secondary"
-                    size="icon"
-                    className="absolute top-2 right-2 h-8 w-8 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/40 text-white border border-white/10 shadow-sm transition-all"
-                    onClick={() => setSelectedMosque(null)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <div className="p-4 md:p-5 space-y-3 -mt-4 relative">
-                  <div className="bg-white rounded-xl p-3 md:p-4 shadow-sm border border-gray-100">
-                    <h3 className="font-bold text-base md:text-lg leading-tight text-gray-900 mb-1">
-                      {selectedMosque.name}
-                    </h3>
-                    <div className="flex items-start gap-2 text-gray-500">
-                      <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                      <p className="text-xs leading-relaxed line-clamp-2">
-                        {selectedMosque.address}
-                      </p>
-                    </div>
-                  </div>
-                  
-                 
-                </div>
-              </div>
+        {selectedMosque && (
+  <div className="absolute top-2 md:top-4 right-0 md:right-4 z-[1000] w-full md:w-auto md:max-w-sm pointer-events-auto animate-in fade-in slide-in-from-right-4 duration-500">
+    <div className="bg-white/90 backdrop-blur-xl p-0 rounded-2xl shadow-2xl border border-white/20 overflow-hidden ring-1 ring-black/5">
+      <div className="relative group">
+        {/* Image Header */}
+        <div className="h-32 md:h-40 bg-gray-100 w-full relative overflow-hidden">
+          {selectedMosque.image && typeof selectedMosque.image === "string" ? (
+            <img
+              src={`https://pb.muaz.app/api/files/${selectedMosque.collectionId}/${selectedMosque.id}/${selectedMosque.image}`}
+              alt={selectedMosque.name}
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-300">
+              <MapPin className="h-12 w-12 opacity-50" />
             </div>
           )}
+
+          {/* Overlay Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-60" />
+
+          {/* Close Button */}
+          <Button
+            variant="secondary"
+            size="icon"
+            className="absolute top-2 right-2 h-8 w-8 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/40 text-white border border-white/10 shadow-sm transition-all"
+            onClick={() => setSelectedMosque(null)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
         </div>
+
+        {/* Content */}
+        <div className="p-4 md:p-5 space-y-3 -mt-4 relative">
+          {/* Basic Info */}
+          <div className="bg-white rounded-xl p-3 md:p-4 shadow-sm border border-gray-100 space-y-2">
+            <h3 className="font-bold text-base md:text-lg text-gray-900">
+              {selectedMosque.name} {selectedMosque.name_bm ? `(${selectedMosque.name_bm})` : ""}
+            </h3>
+
+            <div className="flex items-start gap-2 text-gray-500">
+              <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <p className="text-xs leading-relaxed line-clamp-3">
+                {selectedMosque.address}, {selectedMosque.state}
+              </p>
+            </div>
+
+            {selectedMosque.contact && (
+              <div className="flex items-center gap-2 text-gray-500">
+                <span className="text-xs">📞</span>
+                <p className="text-xs">{selectedMosque.contact}</p>
+              </div>
+            )}
+          </div>
+
+        
+
+          {/* Activities */}
+         
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Map Container */}
         <div className="h-full w-full bg-gray-100">

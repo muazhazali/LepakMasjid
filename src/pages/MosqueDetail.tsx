@@ -29,6 +29,8 @@ const MosqueDetail = () => {
   const { language } = useLanguageStore();
   const [copied, setCopied] = useState(false);
 
+  console.log(mosque)
+
   const handleCopyContact = async () => {
     if (mosque?.contact) {
       try {
@@ -87,7 +89,7 @@ const MosqueDetail = () => {
   const name = mosque.name;
   // Get image URL for the mosque
   const imageUrl = getImageUrl(mosque, mosque.image);
-
+  
   return (
     <>
       <SkipLink />

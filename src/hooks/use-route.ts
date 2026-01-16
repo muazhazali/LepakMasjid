@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import polyline from "@mapbox/polyline";
 
 export type RoutePoint = { lat: number; lon: number };
 
@@ -8,31 +9,79 @@ export function useRoutes(
 ) {
   const [routes, setRoutes] = useState<RoutePoint[]>([]);
   const [loading, setLoading] = useState(false);
+  const [duration, setDuration] = useState(0)
+  const [distance, setDistance] = useState(0)
 
   useEffect(() => {
     if (!from || !to) {
-      console.log("Incomplete coordinates");
       setRoutes([]);
       return;
     }
 
     const fetchRoute = async () => {
       setLoading(true);
-      try {
-        const url = `https://router.project-osrm.org/route/v1/driving/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson`;
-        const res = await fetch(url);
-        const data = await res.json();
 
-        if (data.routes && data.routes.length > 0) {
-          const coords = data.routes[0].geometry.coordinates; 
-          const routePoints = coords.map((c: [number, number]) => ({
-            lat: c[1],
-            lon: c[0],
-          }));
-          setRoutes(routePoints);
-        } else {
+      const body = {
+        origin: {
+          location: { latLng: { latitude: from.lat, longitude: from.lon } },
+        },
+        destination: {
+          location: { latLng: { latitude: to.lat, longitude: to.lon } },
+        },
+        travelMode: "DRIVE",
+        routingPreference: "TRAFFIC_AWARE",
+        routeModifiers: {
+          avoidTolls: true,
+          avoidHighways: false,
+        },
+      };
+
+      try {
+        const res = await fetch(
+          "https://routes.googleapis.com/directions/v2:computeRoutes",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Goog-Api-Key": import.meta.env.VITE_GOOGLE_API_KEY,
+              "X-Goog-FieldMask":
+                "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline",
+            },
+            body: JSON.stringify(body),
+          }
+        );
+
+        const data = await res.json();
+        console.log(data);
+
+        if (!data.routes?.length) {
           setRoutes([]);
+          return;
         }
+
+        const decoded = polyline.decode(
+          data.routes[0].polyline.encodedPolyline
+        );
+
+        const distanceKm = data.routes[0].distanceMeters ;
+
+        const durationSeconds = parseInt(
+          data.routes[0].duration.replace("s", "")
+        );
+        const durationMinutes = durationSeconds ;
+
+       
+        setDistance(distanceKm)
+        setDuration(durationMinutes)
+
+        const routePoints: RoutePoint[] = decoded.map(
+          ([lat, lon]: [number, number]) => ({
+            lat,
+            lon,
+          })
+        );
+
+        setRoutes(routePoints);
       } catch (err) {
         console.error("Error fetching route:", err);
         setRoutes([]);
@@ -44,5 +93,5 @@ export function useRoutes(
     fetchRoute();
   }, [from, to]);
 
-  return { loading, routes };
+  return { loading, routes, duration, distance};
 }
