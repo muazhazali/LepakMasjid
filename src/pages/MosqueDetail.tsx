@@ -37,6 +37,8 @@ const MosqueDetail = () => {
     ? calculateDistance(userLocation.lat, userLocation.lng, mosque.lat, mosque.lng)
     : undefined;
 
+  console.log(mosque)
+
   const handleCopyContact = async () => {
     if (mosque?.contact) {
       try {
@@ -95,7 +97,7 @@ const MosqueDetail = () => {
   const name = mosque.name;
   // Get image URL for the mosque
   const imageUrl = getImageUrl(mosque, mosque.image);
-
+  
   return (
     <>
       <SkipLink />
